@@ -14,5 +14,6 @@ data class ServiceTicketEntity(
     val status: String = "Pending", // Pending, In Progress, Completed
     val isSynced: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val departmentId: Long? = null
 )

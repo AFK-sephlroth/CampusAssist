@@ -9,7 +9,8 @@ data class ServiceTicket(
     val status: TicketStatus = TicketStatus.PENDING,
     val isSynced: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val departmentId: Long? = null
 )
 
 enum class ServiceCategory(val displayName: String) {

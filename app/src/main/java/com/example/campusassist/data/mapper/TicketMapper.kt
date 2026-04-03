@@ -15,7 +15,8 @@ fun ServiceTicketEntity.toDomain(): ServiceTicket = ServiceTicket(
     status = TicketStatus.entries.firstOrNull { it.displayName == status } ?: TicketStatus.PENDING,
     isSynced = isSynced,
     createdAt = createdAt,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    departmentId = departmentId
 )
 
 fun ServiceTicket.toEntity(): ServiceTicketEntity = ServiceTicketEntity(
@@ -27,5 +28,6 @@ fun ServiceTicket.toEntity(): ServiceTicketEntity = ServiceTicketEntity(
     status = status.displayName,
     isSynced = isSynced,
     createdAt = createdAt,
-    updatedAt = updatedAt
+    updatedAt = updatedAt,
+    departmentId = departmentId
 )
