@@ -9,6 +9,7 @@ import com.example.campusassist.data.local.dao.NotificationDao
 import com.example.campusassist.data.local.dao.ServiceTicketDao
 import com.example.campusassist.data.local.dao.UserDao
 import com.example.campusassist.data.local.entity.*
+
 @Database(
     entities = [
         ServiceTicketEntity::class,
@@ -33,17 +34,17 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
-                CREATE TABLE IF NOT EXISTS departments (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    code TEXT NOT NULL,
-                    createdAt INTEGER NOT NULL
+                    CREATE TABLE IF NOT EXISTS departments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        code TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
                     )
                 """.trimIndent())
 
-                db.execSQL("""""
-                ALTER TABLE service_tickets 
-                ADD COLUMN departmentId INTEGER DEFAULT NULL REFERENCES departments(id) ON DELETE SET
+                db.execSQL("""
+                    ALTER TABLE service_tickets
+                    ADD COLUMN departmentId INTEGER DEFAULT NULL REFERENCES departments(id) ON DELETE SET NULL
                 """.trimIndent())
 
                 val now = System.currentTimeMillis()
@@ -60,32 +61,27 @@ abstract class AppDatabase : RoomDatabase() {
                         VALUES ('$name', '$code', $now)
                     """.trimIndent())
                 }
-
             }
-
         }
-    }
 
-    val SEED_CALLBACK = object : Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            val now = System.currentTimeMillis()
-            listOf(
-                Pair("MIS Department", "MIS"),
-                Pair("IT Department", "IT"),
-                Pair("Registrar", "REGISTRAR"),
-                Pair("Library", "LIBRARY"),
-                Pair("Cashier", "CASHIER"),
-                Pair("Maintenance", "MAINTENANCE")
-            ).forEach { (name, code) ->
-                db.execSQL(
-                    """
+        // SEED_CALLBACK is inside companion object so AppModule can access it as AppDatabase.SEED_CALLBACK
+        val SEED_CALLBACK = object : Callback() {
+            override fun onCreate(db: SupportSQLiteDatabase) {
+                val now = System.currentTimeMillis()
+                listOf(
+                    Pair("MIS Department", "MIS"),
+                    Pair("IT Department", "IT"),
+                    Pair("Registrar", "REGISTRAR"),
+                    Pair("Library", "LIBRARY"),
+                    Pair("Cashier", "CASHIER"),
+                    Pair("Maintenance", "MAINTENANCE")
+                ).forEach { (name, code) ->
+                    db.execSQL("""
                         INSERT INTO departments (name, code, createdAt)
                         VALUES ('$name', '$code', $now)
-                """.trimIndent()
-                )
-
+                    """.trimIndent())
+                }
             }
-
         }
-    }
-}
+    }   // <-- companion object closes here
+}       // <-- class closes here
