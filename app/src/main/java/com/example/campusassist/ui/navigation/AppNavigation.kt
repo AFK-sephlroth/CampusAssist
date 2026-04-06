@@ -28,6 +28,7 @@ fun AppNavigation() {
     val notifViewModel  : NotificationViewModel = hiltViewModel()
     val themeViewModel  : ThemeViewModel        = hiltViewModel()
     val syncViewModel   : SyncViewModel         = hiltViewModel()
+    val departmentViewModel: DepartmentViewModel = hiltViewModel()
 
     val authState by authViewModel.authState.collectAsState()
 
@@ -72,13 +73,15 @@ fun AppNavigation() {
                 onNotificationsClick = { navController.navigate(Screen.Notifications.route) },
                 notifViewModel = notifViewModel,
                 syncViewModel = syncViewModel,
-                currentUser = authState.currentUser
+                currentUser = authState.currentUser,
+                departmentViewModel = departmentViewModel,
             )
         }
 
         composable(Screen.CreateTicket.route) {
             CreateTicketScreen(
                 viewModel = ticketViewModel,
+                departmentViewModel = departmentViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -91,6 +94,7 @@ fun AppNavigation() {
             TicketDetailScreen(
                 ticketId = id,
                 viewModel = ticketViewModel,
+                departmentViewModel = departmentViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

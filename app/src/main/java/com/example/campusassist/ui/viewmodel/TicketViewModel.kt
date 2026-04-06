@@ -24,6 +24,7 @@ data class CreateTicketUiState(
     val description: String = "",
     val category: ServiceCategory = ServiceCategory.IT,
     val priority: TicketPriority = TicketPriority.MEDIUM,
+    val departmentId: Long? = null,
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val errorMessage: String? = null
@@ -73,6 +74,9 @@ class TicketViewModel @Inject constructor(
     fun onCategoryChange(cat: ServiceCategory) = _createUiState.update { it.copy(category = cat) }
     fun onPriorityChange(pri: TicketPriority) = _createUiState.update { it.copy(priority = pri) }
 
+    fun onDepartmentChange(departmentId: Long?) =
+        _createUiState.update { it.copy(departmentId = departmentId) }
+
     fun submitTicket() {
         val state = _createUiState.value
         if (state.title.isBlank()) {
@@ -86,7 +90,8 @@ class TicketViewModel @Inject constructor(
                     title = state.title,
                     description = state.description,
                     category = state.category,
-                    priority = state.priority
+                    priority = state.priority,
+                    departmentId = state.departmentId
                 )
                 repository.createTicket(ticket)
                 _createUiState.update { it.copy(isLoading = false, isSuccess = true) }

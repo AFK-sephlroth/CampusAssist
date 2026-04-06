@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.example.campusassist.domain.model.ServiceTicket
 import com.example.campusassist.domain.model.TicketStatus
 import com.example.campusassist.ui.theme.CampusColors
+import com.example.campusassist.ui.viewmodel.DepartmentViewModel
 import com.example.campusassist.ui.viewmodel.TicketViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -34,9 +35,13 @@ import java.util.*
 fun TicketDetailScreen(
     ticketId: Long,
     viewModel: TicketViewModel,
+    departmentViewModel: DepartmentViewModel,
     onNavigateBack: () -> Unit
 ) {
     val ticket by viewModel.selectedTicket.collectAsState()
+    val deptState by departmentViewModel.uiState.collectAsState()
+    val departmentName = deptState.departments
+        .firstOrNull { it.id == ticket?.departmentId }?.name
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(ticketId) { viewModel.loadTicketById(ticketId) }
@@ -106,7 +111,7 @@ fun TicketDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // ── Hero Card ─────────────────────────────────────────────────
-                HeroCard(ticket = t)
+                HeroCard(ticket = t, departmentName = departmentName)
 
                 // ── Description ───────────────────────────────────────────────
                 if (t.description.isNotBlank()) {
@@ -127,6 +132,8 @@ fun TicketDetailScreen(
                     InfoRow("Last Updated", formatDetailDate(t.updatedAt))
                     Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 6.dp))
                     InfoRow("Sync Status", if (t.isSynced) "✓ Synced to server" else "⏳ Pending sync")
+                    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(vertical = 6.dp))
+                    InfoRow("Department", departmentName ?: "Not specified")
                 }
 
                 // ── Update Status ─────────────────────────────────────────────
@@ -220,7 +227,7 @@ fun TicketDetailScreen(
 }
 
 @Composable
-fun HeroCard(ticket: ServiceTicket) {
+fun HeroCard(ticket: ServiceTicket, departmentName: String?) {
     val catColor = when (ticket.category.name) {
         "IT"         -> CampusColors.CatIT
         "FACILITIES" -> CampusColors.CatFacilities
@@ -281,6 +288,18 @@ fun HeroCard(ticket: ServiceTicket) {
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(ticket.category.displayName, color = catColor, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                departmentName?.let {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(CampusColors.TextMuted.copy(alpha = 0.1f))
+                            .border(1.dp, CampusColors.TextMuted.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(it, color = CampusColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
                 // Priority
                 Row(

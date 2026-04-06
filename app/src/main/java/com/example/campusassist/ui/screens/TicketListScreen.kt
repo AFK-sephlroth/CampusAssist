@@ -32,9 +32,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.ServiceTicket
 import com.example.campusassist.domain.model.TicketStatus
 import com.example.campusassist.ui.theme.CampusColors
+import com.example.campusassist.ui.viewmodel.DepartmentViewModel
 import com.example.campusassist.ui.viewmodel.TicketViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -49,9 +51,11 @@ fun TicketListScreen(
     onNotificationsClick: () -> Unit = {},
     notifViewModel: com.example.campusassist.ui.viewmodel.NotificationViewModel? = null,
     syncViewModel: com.example.campusassist.ui.viewmodel.SyncViewModel? = null,
-    currentUser: com.example.campusassist.domain.model.User? = null
+    currentUser: com.example.campusassist.domain.model.User? = null,
+    departmentViewModel: DepartmentViewModel
 ) {
     val uiState by viewModel.listUiState.collectAsState()
+    val deptState by departmentViewModel.uiState.collectAsState()
     val syncState by syncViewModel?.syncState?.collectAsState()
         ?: remember { mutableStateOf(com.example.campusassist.ui.viewmodel.SyncUiState()) }
     var selectedFilter by remember { mutableStateOf<TicketStatus?>(null) }
@@ -129,7 +133,10 @@ fun TicketListScreen(
                             visible = true,
                             enter = fadeIn() + slideInVertically()
                         ) {
-                            TicketCard(ticket = ticket, onClick = { onTicketClick(ticket.id) })
+                            TicketCard(
+                                ticket = ticket,
+                                departments = deptState.departments,
+                                onClick = { onTicketClick(ticket.id) })
                         }
                     }
                     item { Spacer(Modifier.height(72.dp)) }
@@ -379,12 +386,17 @@ fun EmptyState(hasFilter: Boolean) {
 }
 
 @Composable
-fun TicketCard(ticket: ServiceTicket, onClick: () -> Unit) {
+fun TicketCard(
+    ticket: ServiceTicket,
+    departments: List<Department>,
+    onClick: () -> Unit
+) {
     val (statusColor, statusBg) = when (ticket.status) {
         TicketStatus.PENDING    -> CampusColors.StatusPending to CampusColors.StatusPendingBg
         TicketStatus.IN_PROGRESS -> CampusColors.StatusProgress to CampusColors.StatusProgressBg
         TicketStatus.COMPLETED  -> CampusColors.StatusDone to CampusColors.StatusDoneBg
     }
+    val departmentName = departments.firstOrNull { it.id == ticket.departmentId }?.name ?: "No department"
     val catColor = when (ticket.category.name) {
         "IT"         -> CampusColors.CatIT
         "FACILITIES" -> CampusColors.CatFacilities
@@ -491,6 +503,23 @@ fun TicketCard(ticket: ServiceTicket, onClick: () -> Unit) {
                         .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                     Text(ticket.category.displayName, color = catColor, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                // Add after the category Box, before the priority Row
+                ticket.departmentId?.let {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(CampusColors.TextMuted.copy(alpha = 0.1f))
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = departmentName,
+                            color = CampusColors.TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
 
                 // Priority dot + label

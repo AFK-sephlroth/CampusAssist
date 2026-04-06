@@ -25,14 +25,21 @@ import com.example.campusassist.domain.model.ServiceCategory
 import com.example.campusassist.domain.model.TicketPriority
 import com.example.campusassist.ui.theme.CampusColors
 import com.example.campusassist.ui.viewmodel.TicketViewModel
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import com.example.campusassist.domain.model.Department
+import com.example.campusassist.ui.viewmodel.DepartmentViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateTicketScreen(
     viewModel: TicketViewModel,
+    departmentViewModel: DepartmentViewModel,
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.createUiState.collectAsState()
+    val deptState by departmentViewModel.uiState.collectAsState()
+
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onNavigateBack()
@@ -203,6 +210,15 @@ fun CreateTicketScreen(
                 }
             }
 
+            // Department selector
+            FormSection(label = "DEPARTMENT") {
+                DepartmentDropdown(
+                    departments = deptState.departments,
+                    selectedId = uiState.departmentId,
+                    onSelect = viewModel::onDepartmentChange
+                )
+            }
+
             // Error message
             uiState.errorMessage?.let { error ->
                 Row(
@@ -281,3 +297,99 @@ fun outlinedTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = MaterialTheme.colorScheme.onSurface,
     unfocusedTextColor = MaterialTheme.colorScheme.onSurface
 )
+
+@Composable
+fun DepartmentDropdown(
+    departments: List<Department>,
+    selectedId: Long?,
+    onSelect: (Long?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selected = departments.firstOrNull { it.id == selectedId }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(
+                    1.5.dp,
+                    if (selectedId != null) CampusColors.Amber else MaterialTheme.colorScheme.outline,
+                    RoundedCornerShape(12.dp)
+                )
+                .clickable { expanded = true }
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selected?.name ?: "Select a department",
+                    color = if (selected != null) MaterialTheme.colorScheme.onSurface
+                    else CampusColors.TextMuted,
+                    fontSize = 14.sp,
+                    fontWeight = if (selected != null) FontWeight.Medium else FontWeight.Normal
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ArrowDropUp
+                    else Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = CampusColors.Amber
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+        ) {
+            // None option
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        "None / Not sure",
+                        color = CampusColors.TextSecondary,
+                        fontSize = 13.sp
+                    )
+                },
+                onClick = {
+                    onSelect(null)
+                    expanded = false
+                }
+            )
+            HorizontalDivider()
+            departments.forEach { dept ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                text = dept.name,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = dept.code,
+                                color = CampusColors.TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                    },
+                    onClick = {
+                        onSelect(dept.id)
+                        expanded = false
+                    },
+                    modifier = if (dept.id == selectedId)
+                        Modifier.background(CampusColors.Amber.copy(alpha = 0.08f))
+                    else Modifier
+                )
+            }
+        }
+    }
+}
