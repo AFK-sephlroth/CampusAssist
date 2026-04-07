@@ -47,10 +47,17 @@ abstract class AppDatabase : RoomDatabase() {
                     ADD COLUMN departmentId INTEGER DEFAULT NULL REFERENCES departments(id) ON DELETE SET NULL
                 """.trimIndent())
 
+                //CCIS, COM, CEA, CAT, CON, CCJS, and  COED
                 val now = System.currentTimeMillis()
                 listOf(
                     Pair("MIS Department", "MIS"),
-                    Pair("IT Department", "IT"),
+                    Pair("CCIS Department", "CCIS"),
+                    Pair("COM Department", "COM"),
+                    Pair("CEA Department", "CEA"),
+                    Pair("CAT Department", "CAT"),
+                    Pair("CON Department", "CON"),
+                    Pair("CCJS Department", "CCJS"),
+                    Pair("COED Department", "COED"),
                     Pair("Registrar", "REGISTRAR"),
                     Pair("Library", "LIBRARY"),
                     Pair("Cashier", "CASHIER"),
@@ -70,7 +77,13 @@ abstract class AppDatabase : RoomDatabase() {
                 val now = System.currentTimeMillis()
                 listOf(
                     Pair("MIS Department", "MIS"),
-                    Pair("IT Department", "IT"),
+                    Pair("CCIS Department", "CCIS"),
+                    Pair("COM Department", "COM"),
+                    Pair("CEA Department", "CEA"),
+                    Pair("CAT Department", "CAT"),
+                    Pair("CON Department", "CON"),
+                    Pair("CCJS Department", "CCJS"),
+                    Pair("COED Department", "COED"),
                     Pair("Registrar", "REGISTRAR"),
                     Pair("Library", "LIBRARY"),
                     Pair("Cashier", "CASHIER"),
