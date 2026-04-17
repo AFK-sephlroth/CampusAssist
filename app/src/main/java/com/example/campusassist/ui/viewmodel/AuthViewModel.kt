@@ -3,13 +3,17 @@ package com.example.campusassist.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campusassist.data.local.SessionManager
+import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.User
 import com.example.campusassist.domain.model.UserRole
+import com.example.campusassist.domain.repository.DepartmentRepository
 import com.example.campusassist.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+// ── Auth state (login / session) ─────────────────────────────────────────────
 
 data class AuthUiState(
     val isLoading: Boolean = false,
@@ -18,23 +22,32 @@ data class AuthUiState(
     val errorMessage: String? = null
 )
 
+// ── Registration state ────────────────────────────────────────────────────────
+
 data class RegisterUiState(
-    val name: String = "",
-    val studentId: String = "",
-    val email: String = "",
-    val department: String = "",
-    val contactNumber: String = "",
-    val role: UserRole = UserRole.STUDENT,
+    // Shared fields
+    val role: UserRole = UserRole.USER,
+    val username: String = "",
+    val fullName: String = "",
     val password: String = "",
     val confirmPassword: String = "",
+
+    // Staff-only fields
+    val selectedDepartment: Department? = null,
+
+    // Async helpers
+    val departments: List<Department> = emptyList(),
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val errorMessage: String? = null
 )
 
+// ── ViewModel ─────────────────────────────────────────────────────────────────
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val userRepository: UserRepository,
+    private val departmentRepository: DepartmentRepository,
     private val sessionManager: SessionManager
 ) : ViewModel() {
 
@@ -46,7 +59,10 @@ class AuthViewModel @Inject constructor(
 
     init {
         checkSession()
+        loadDepartments()
     }
+
+    // ── Session ───────────────────────────────────────────────────────────────
 
     private fun checkSession() {
         viewModelScope.launch {
@@ -54,7 +70,7 @@ class AuthViewModel @Inject constructor(
             if (userId != null) {
                 val user = userRepository.getUserById(userId)
                 _authState.value = AuthUiState(
-                    isLoading = false,
+                    isLoading  = false,
                     isLoggedIn = user != null,
                     currentUser = user
                 )
@@ -63,6 +79,8 @@ class AuthViewModel @Inject constructor(
             }
         }
     }
+
+    // ── Login ─────────────────────────────────────────────────────────────────
 
     fun login(id: String, password: String) {
         if (id.isBlank() || password.isBlank()) {
@@ -86,40 +104,73 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthUiState()
     }
 
-    // Register form field updates
-    fun onNameChange(v: String)            = _registerState.update { it.copy(name = v) }
-    fun onStudentIdChange(v: String)       = _registerState.update { it.copy(studentId = v) }
-    fun onEmailChange(v: String)           = _registerState.update { it.copy(email = v) }
-    fun onDepartmentChange(v: String)      = _registerState.update { it.copy(department = v) }
-    fun onContactChange(v: String)         = _registerState.update { it.copy(contactNumber = v) }
-    fun onRoleChange(v: UserRole)          = _registerState.update { it.copy(role = v) }
-    fun onPasswordChange(v: String)        = _registerState.update { it.copy(password = v) }
-    fun onConfirmPasswordChange(v: String) = _registerState.update { it.copy(confirmPassword = v) }
+    // ── Registration — departments ────────────────────────────────────────────
+
+    private fun loadDepartments() {
+        viewModelScope.launch {
+            departmentRepository.getAllDepartments()
+                .catch { /* silently ignore; dropdown will just be empty */ }
+                .collect { list ->
+                    _registerState.update { it.copy(departments = list) }
+                }
+        }
+    }
+
+    // ── Registration — field updates ──────────────────────────────────────────
+
+    fun onRoleChange(role: UserRole) {
+        // Reset role-specific fields when switching to avoid stale state
+        _registerState.update {
+            it.copy(
+                role = role,
+                selectedDepartment = null,
+                errorMessage = null
+            )
+        }
+    }
+
+    fun onUsernameChange(v: String)           = _registerState.update { it.copy(username = v) }
+    fun onFullNameChange(v: String)           = _registerState.update { it.copy(fullName = v) }
+    fun onPasswordChange(v: String)           = _registerState.update { it.copy(password = v) }
+    fun onConfirmPasswordChange(v: String)    = _registerState.update { it.copy(confirmPassword = v) }
+    fun onDepartmentChange(dept: Department?) = _registerState.update { it.copy(selectedDepartment = dept) }
+
+    // ── Registration — submit ─────────────────────────────────────────────────
 
     fun register() {
         val s = _registerState.value
+
+        // Validate shared fields
         when {
-            s.name.isBlank() || s.studentId.isBlank() || s.password.isBlank() ->
-                _registerState.update { it.copy(errorMessage = "Please fill in all required fields") }
-            s.password != s.confirmPassword ->
-                _registerState.update { it.copy(errorMessage = "Passwords do not match") }
+            s.username.isBlank() ->
+                return _registerState.update { it.copy(errorMessage = "Username is required") }
+            s.fullName.isBlank() ->
+                return _registerState.update { it.copy(errorMessage = "Full name is required") }
             s.password.length < 6 ->
-                _registerState.update { it.copy(errorMessage = "Password must be at least 6 characters") }
-            else -> viewModelScope.launch {
-                _registerState.update { it.copy(isLoading = true, errorMessage = null) }
-                try {
-                    val user = User(
-                        id = s.studentId.trim(),
-                        name = s.name,
-                        email = s.email,
-                        department = s.department,
-                        contactNumber = s.contactNumber,
-                        role = s.role
-                    )
-                    userRepository.register(user, s.password)
-                    _registerState.update { it.copy(isLoading = false, isSuccess = true) }
-                } catch (e: Exception) {
-                    _registerState.update { it.copy(isLoading = false, errorMessage = "ID already exists") }
+                return _registerState.update { it.copy(errorMessage = "Password must be at least 6 characters") }
+            s.password != s.confirmPassword ->
+                return _registerState.update { it.copy(errorMessage = "Passwords do not match") }
+        }
+
+        // Validate Staff-only fields
+        if (s.role == UserRole.STAFF && s.selectedDepartment == null) {
+            return _registerState.update { it.copy(errorMessage = "Please select a department") }
+        }
+
+        viewModelScope.launch {
+            _registerState.update { it.copy(isLoading = true, errorMessage = null) }
+            try {
+                val user = User(
+                    id         = s.username.trim(),
+                    name       = s.fullName.trim(),
+                    department = if (s.role == UserRole.STAFF) s.selectedDepartment?.name else null,
+                    role       = s.role
+                )
+                userRepository.register(user, s.password)
+                _registerState.update { it.copy(isLoading = false, isSuccess = true) }
+            } catch (e: Exception) {
+                _registerState.update {
+                    it.copy(isLoading = false, errorMessage = "Username already taken")
                 }
             }
         }

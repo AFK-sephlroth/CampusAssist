@@ -1,5 +1,7 @@
 package com.example.campusassist.ui.screens
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,18 +13,20 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.UserRole
 import com.example.campusassist.ui.theme.CampusColors
 import com.example.campusassist.ui.viewmodel.AuthViewModel
@@ -43,11 +47,19 @@ fun RegisterScreen(
         containerColor = CampusColors.NavyDeep,
         topBar = {
             TopAppBar(
-                title = { Text("Create Account", fontWeight = FontWeight.Bold, color = CampusColors.TextPrimary) },
+                title = {
+                    Text(
+                        "Create Account",
+                        fontWeight = FontWeight.Bold,
+                        color = CampusColors.TextPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Box(
-                            modifier = Modifier.size(36.dp).clip(CircleShape)
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
                                 .background(CampusColors.TextMuted.copy(alpha = 0.3f)),
                             contentAlignment = Alignment.Center
                         ) {
@@ -55,7 +67,7 @@ fun RegisterScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Transparent)
             )
         }
     ) { pv ->
@@ -63,105 +75,271 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(pv)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            RegisterField("Full Name *", state.name, viewModel::onNameChange)
-            RegisterField("Student / Staff ID *", state.studentId, viewModel::onStudentIdChange)
-            RegisterField("Email", state.email, viewModel::onEmailChange, KeyboardType.Email)
-            RegisterField("Department", state.department, viewModel::onDepartmentChange)
-            RegisterField("Contact Number", state.contactNumber, viewModel::onContactChange, KeyboardType.Phone)
+            Spacer(Modifier.height(4.dp))
 
-            // Role selector
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("ROLE", fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    color = CampusColors.TextSecondary, letterSpacing = 1.2.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    UserRole.entries.forEach { role ->
-                        val isSelected = state.role == role
-                        val color = when (role) {
-                            UserRole.STUDENT -> CampusColors.CatIT
-                            UserRole.STAFF   -> CampusColors.CatLibrary
-                            UserRole.ADMIN   -> CampusColors.Amber
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) color else color.copy(alpha = 0.08f))
-                                .border(1.5.dp, if (isSelected) color else color.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-                                .clickable { viewModel.onRoleChange(role) }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                role.displayName,
-                                color = if (isSelected) CampusColors.NavyDeep else color,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
+            // ── Role toggle ───────────────────────────────────────────────────
+            RoleToggle(
+                selected = state.role,
+                onSelect = viewModel::onRoleChange
+            )
+
+            // ── Shared fields ─────────────────────────────────────────────────
+            RegisterField(
+                label = "Username *",
+                value = state.username,
+                onValueChange = viewModel::onUsernameChange
+            )
+            RegisterField(
+                label = "Full Name *",
+                value = state.fullName,
+                onValueChange = viewModel::onFullNameChange
+            )
+
+            // ── Staff-only: department dropdown ───────────────────────────────
+            AnimatedVisibility(
+                visible = state.role == UserRole.STAFF,
+                enter = fadeIn(tween(200)) + expandVertically(tween(200)),
+                exit  = fadeOut(tween(150)) + shrinkVertically(tween(150))
+            ) {
+                DepartmentDropdown(
+                    departments = state.departments,
+                    selected    = state.selectedDepartment,
+                    onSelect    = viewModel::onDepartmentChange
+                )
+            }
+
+            // ── Password fields ───────────────────────────────────────────────
+            RegisterField(
+                label         = "Password *",
+                value         = state.password,
+                onValueChange = viewModel::onPasswordChange,
+                keyboardType  = KeyboardType.Password,
+                isPassword    = true
+            )
+            RegisterField(
+                label         = "Confirm Password *",
+                value         = state.confirmPassword,
+                onValueChange = viewModel::onConfirmPasswordChange,
+                keyboardType  = KeyboardType.Password,
+                isPassword    = true
+            )
+
+            // ── Error banner ──────────────────────────────────────────────────
+            AnimatedVisibility(visible = state.errorMessage != null) {
+                state.errorMessage?.let { msg ->
+                    Text(
+                        text     = msg,
+                        color    = CampusColors.PriorityHigh,
+                        fontSize = 13.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(CampusColors.PriorityHigh.copy(alpha = 0.1f))
+                            .border(1.dp, CampusColors.PriorityHigh.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(10.dp)
+                    )
                 }
             }
 
-            RegisterField("Password *", state.password, viewModel::onPasswordChange,
-                KeyboardType.Password, isPassword = true)
-            RegisterField("Confirm Password *", state.confirmPassword, viewModel::onConfirmPasswordChange,
-                KeyboardType.Password, isPassword = true)
-
-            state.errorMessage?.let {
-                Text(
-                    it, color = CampusColors.PriorityHigh, fontSize = 13.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(CampusColors.PriorityHigh.copy(alpha = 0.1f))
-                        .padding(10.dp)
-                )
-            }
-
+            // ── Submit button ─────────────────────────────────────────────────
             Button(
-                onClick = viewModel::register,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = !state.isLoading,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
+                onClick  = viewModel::register,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled  = !state.isLoading,
+                shape    = RoundedCornerShape(12.dp),
+                colors   = ButtonDefaults.buttonColors(
                     containerColor = CampusColors.Amber,
-                    contentColor = CampusColors.NavyDeep
+                    contentColor   = CampusColors.NavyDeep
                 )
             ) {
                 if (state.isLoading) {
-                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = CampusColors.NavyDeep)
+                    CircularProgressIndicator(
+                        modifier    = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color       = CampusColors.NavyDeep
+                    )
                 } else {
                     Text("Create Account", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
+// ── Role Toggle ───────────────────────────────────────────────────────────────
+
+@Composable
+private fun RoleToggle(
+    selected: UserRole,
+    onSelect: (UserRole) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "ACCOUNT TYPE",
+            fontSize     = 11.sp,
+            fontWeight   = FontWeight.Bold,
+            color        = CampusColors.TextSecondary,
+            letterSpacing = 1.2.sp
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CampusColors.NavyCard)
+                .border(1.dp, CampusColors.TextMuted.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            UserRole.entries.forEach { role ->
+                val isSelected = selected == role
+                val roleColor  = if (role == UserRole.STAFF) CampusColors.CatLibrary else CampusColors.CatIT
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(if (isSelected) roleColor else androidx.compose.ui.graphics.Color.Transparent)
+                        .clickable { onSelect(role) }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text       = role.displayName,
+                        color      = if (isSelected) CampusColors.NavyDeep else CampusColors.TextSecondary,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize   = 14.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Department Dropdown ───────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DepartmentDropdown(
+    departments: List<Department>,
+    selected:    Department?,
+    onSelect:    (Department?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "DEPARTMENT *",
+            fontSize      = 11.sp,
+            fontWeight    = FontWeight.Bold,
+            color         = CampusColors.TextSecondary,
+            letterSpacing = 1.2.sp
+        )
+
+        ExposedDropdownMenuBox(
+            expanded         = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value         = selected?.name ?: "",
+                onValueChange = {},
+                readOnly      = true,
+                placeholder   = { Text("Select a department", color = CampusColors.TextMuted) },
+                trailingIcon  = {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = CampusColors.TextSecondary
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(),
+                shape  = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor   = CampusColors.Amber,
+                    unfocusedBorderColor = CampusColors.TextMuted,
+                    focusedTextColor     = CampusColors.TextPrimary,
+                    unfocusedTextColor   = CampusColors.TextPrimary,
+                    cursorColor          = CampusColors.Amber
+                )
+            )
+
+            ExposedDropdownMenu(
+                expanded         = expanded,
+                onDismissRequest = { expanded = false },
+                modifier         = Modifier.background(CampusColors.NavyCard)
+            ) {
+                if (departments.isEmpty()) {
+                    DropdownMenuItem(
+                        text    = { Text("No departments available", color = CampusColors.TextMuted, fontSize = 13.sp) },
+                        onClick = { expanded = false },
+                        enabled = false
+                    )
+                } else {
+                    departments.forEach { dept ->
+                        val isSelected = selected?.id == dept.id
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text       = dept.name,
+                                        color      = if (isSelected) CampusColors.Amber else CampusColors.TextPrimary,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        fontSize   = 14.sp
+                                    )
+                                    Text(
+                                        text     = dept.code,
+                                        color    = CampusColors.TextMuted,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onSelect(dept)
+                                expanded = false
+                            },
+                            modifier = Modifier.background(
+                                if (isSelected) CampusColors.Amber.copy(alpha = 0.08f)
+                                else androidx.compose.ui.graphics.Color.Transparent
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Reusable text field ───────────────────────────────────────────────────────
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterField(
-    label: String,
-    value: String,
+    label:         String,
+    value:         String,
     onValueChange: (String) -> Unit,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    isPassword: Boolean = false
+    keyboardType:  KeyboardType = KeyboardType.Text,
+    isPassword:    Boolean = false
 ) {
     OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = loginFieldColors(),
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        value             = value,
+        onValueChange     = onValueChange,
+        label             = { Text(label) },
+        modifier          = Modifier.fillMaxWidth(),
+        shape             = RoundedCornerShape(12.dp),
+        colors            = loginFieldColors(),
+        singleLine        = true,
+        keyboardOptions   = KeyboardOptions(keyboardType = keyboardType),
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None
     )
 }

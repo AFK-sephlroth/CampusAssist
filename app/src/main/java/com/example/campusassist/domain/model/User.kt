@@ -1,20 +1,15 @@
 package com.example.campusassist.domain.model
 
 data class User(
-    val id: String,
-    val name: String,
-    val email: String,
-    val department: String,
-    val contactNumber: String,
+    val username: String, // Changed from id or name
+    val fullname: String,
     val role: UserRole,
-    val createdAt: Long = System.currentTimeMillis(),
-    val isActive: Boolean = true
+    val department: String? = null // Make nullable for normal users
 )
 
 enum class UserRole(val displayName: String) {
-    STUDENT("Student"),
-    STAFF("Staff"),
-    ADMIN("Admin")
+    USER("User"),
+    STAFF("Staff")
 }
 
 data class AppNotification(

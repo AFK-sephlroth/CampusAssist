@@ -19,7 +19,7 @@ import com.example.campusassist.data.local.entity.*
         NotificationEntity::class,
         DepartmentEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +31,8 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "campus_assist_db"
 
+        // Migration 2 to 3: Just creates the table and adds the column
+        // without pre-filling it with departments.
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -47,54 +49,35 @@ abstract class AppDatabase : RoomDatabase() {
                     ADD COLUMN departmentId INTEGER DEFAULT NULL REFERENCES departments(id) ON DELETE SET NULL
                 """.trimIndent())
 
-                //CCIS, COM, CEA, CAT, CON, CCJS, and  COED
-                val now = System.currentTimeMillis()
-                listOf(
-                    Pair("MIS Department", "MIS"),
-                    Pair("CCIS Department", "CCIS"),
-                    Pair("COM Department", "COM"),
-                    Pair("CEA Department", "CEA"),
-                    Pair("CAT Department", "CAT"),
-                    Pair("CON Department", "CON"),
-                    Pair("CCJS Department", "CCJS"),
-                    Pair("COED Department", "COED"),
-                    Pair("Registrar", "REGISTRAR"),
-                    Pair("Library", "LIBRARY"),
-                    Pair("Cashier", "CASHIER"),
-                    Pair("Maintenance", "MAINTENANCE")
-                ).forEach { (name, code) ->
-                    db.execSQL("""
-                        INSERT INTO departments (name, code, createdAt)
-                        VALUES ('$name', '$code', $now)
-                    """.trimIndent())
-                }
+                // Hard-coded department insertion removed to follow your new logic
             }
         }
 
-        // SEED_CALLBACK is inside companion object so AppModule can access it as AppDatabase.SEED_CALLBACK
-        val SEED_CALLBACK = object : Callback() {
-            override fun onCreate(db: SupportSQLiteDatabase) {
-                val now = System.currentTimeMillis()
-                listOf(
-                    Pair("MIS Department", "MIS"),
-                    Pair("CCIS Department", "CCIS"),
-                    Pair("COM Department", "COM"),
-                    Pair("CEA Department", "CEA"),
-                    Pair("CAT Department", "CAT"),
-                    Pair("CON Department", "CON"),
-                    Pair("CCJS Department", "CCJS"),
-                    Pair("COED Department", "COED"),
-                    Pair("Registrar", "REGISTRAR"),
-                    Pair("Library", "LIBRARY"),
-                    Pair("Cashier", "CASHIER"),
-                    Pair("Maintenance", "MAINTENANCE")
-                ).forEach { (name, code) ->
-                    db.execSQL("""
-                        INSERT INTO departments (name, code, createdAt)
-                        VALUES ('$name', '$code', $now)
-                    """.trimIndent())
-                }
+        // Migration 3 to 4: Cleans up the Users table
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE users_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        username TEXT NOT NULL,
+                        fullname TEXT NOT NULL,
+                        password TEXT NOT NULL,
+                        department TEXT, 
+                        role TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    INSERT INTO users_new (id, username, fullname, password, department, role, createdAt)
+                    SELECT id, username, fullname, password, department, role, createdAt FROM users
+                """.trimIndent())
+
+                db.execSQL("DROP TABLE users")
+                db.execSQL("ALTER TABLE users_new RENAME TO users")
             }
         }
-    }   // <-- companion object closes here
-}       // <-- class closes here
+
+        // Removed SEED_CALLBACK entirely so the app starts with 0 departments.
+    }
+}

@@ -32,8 +32,11 @@ object DatabaseModule {
     @Provides @Singleton
     fun provideDatabase(@ApplicationContext ctx: Context): AppDatabase =
         Room.databaseBuilder(ctx, AppDatabase::class.java, AppDatabase.DATABASE_NAME)
-            .addMigrations(AppDatabase.MIGRATION_2_3)   // proper migration now
-            .addCallback(AppDatabase.SEED_CALLBACK)      // seeds on fresh install
+            .addMigrations(
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4 // Add the new migration here
+            )
+            // .addCallback(AppDatabase.SEED_CALLBACK) <-- REMOVE THIS LINE
             .build()
 
     @Provides @Singleton
@@ -46,7 +49,7 @@ object DatabaseModule {
     fun provideNotifDao(db: AppDatabase): NotificationDao = db.notificationDao()
 
     @Provides @Singleton
-    fun provideDepartmentDao(db: AppDatabase): DepartmentDao = db.departmentDao()  // new
+    fun provideDepartmentDao(db: AppDatabase): DepartmentDao = db.departmentDao()
 
     @Provides @Singleton
     fun provideSessionManager(@ApplicationContext ctx: Context): SessionManager = SessionManager(ctx)

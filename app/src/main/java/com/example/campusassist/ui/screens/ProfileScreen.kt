@@ -39,10 +39,10 @@ fun ProfileScreen(
     val theme by themeViewModel.theme.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
+    // Simplify the role color logic to match your new 2-role system (User/Staff)
     val roleColor = when (user.role) {
-        UserRole.STUDENT -> CampusColors.CatIT
-        UserRole.STAFF   -> CampusColors.CatLibrary
-        UserRole.ADMIN   -> CampusColors.Amber
+        UserRole.STAFF -> CampusColors.CatLibrary
+        else -> CampusColors.CatIT // Default for normal users
     }
 
     Scaffold(
@@ -59,18 +59,23 @@ fun ProfileScreen(
                         ) { Icon(Icons.Default.ArrowBack, null, tint = CampusColors.TextPrimary) }
                     }
                 },
+                // Using a consistent dark theme color for the top bar
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0D1F3C))
             )
         }
     ) { pv ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(pv)
-                .verticalScroll(rememberScrollState()).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(pv)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Avatar card
             Box(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(
                         brush = Brush.linearGradient(
@@ -82,38 +87,43 @@ fun ProfileScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     Box(
-                        modifier = Modifier.size(64.dp).clip(CircleShape)
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
                             .background(brush = Brush.linearGradient(colors = listOf(roleColor, roleColor.copy(alpha = 0.6f)))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(user.name.take(2).uppercase(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = CampusColors.NavyDeep)
+                        // Takes first letter of name for avatar
+                        Text(user.fullname.take(1).uppercase(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Color.White)
                     }
                     Column {
-                        Text(user.name, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
-                        Text(user.id, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(user.fullname, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text("@${user.username}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(4.dp))
                         Box(
-                            modifier = Modifier.clip(RoundedCornerShape(20.dp))
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
                                 .background(roleColor.copy(alpha = 0.15f))
                                 .border(1.dp, roleColor.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text(user.role.displayName, color = roleColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(user.role.name, color = roleColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
 
-            // Contact info
-            DetailCard(title = "CONTACT INFO") {
-                InfoRow("Email", user.email.ifBlank { "—" })
+            // User Info
+            DetailCard(title = "ACCOUNT DETAILS") {
+                // We only show Department now as per your requirements
+                InfoRow("Department", user.department?.ifBlank { "No Department" } ?: "Not Assigned")
+
+                // You can add 'Username' here if you want more info on the card
                 Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 6.dp))
-                InfoRow("Department", user.department.ifBlank { "—" })
-                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 6.dp))
-                InfoRow("Contact", user.contactNumber.ifBlank { "—" })
+                InfoRow("Role", user.role.name)
             }
 
-            // Theme toggle
+            // Appearance toggle (Light/Dark/System)
             DetailCard(title = "APPEARANCE") {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("LIGHT", "DARK", "SYSTEM").forEach { t ->
@@ -156,6 +166,7 @@ fun ProfileScreen(
         }
     }
 
+    // Logout Dialog logic remains the same
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
