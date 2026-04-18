@@ -31,6 +31,12 @@ class TicketRepositoryImpl @Inject constructor(
     override suspend fun updateTicket(ticket: ServiceTicket) =
         dao.updateTicket(ticket.toEntity())
 
+    override suspend fun updateStatus(id: Long, status: TicketStatus) =
+        dao.updateStatus(id, status.displayName, System.currentTimeMillis())
+
+    override suspend fun updateNotes(id: Long, notes: String?) =
+        dao.updateNotes(id, notes, System.currentTimeMillis())
+
     override suspend fun deleteTicket(ticket: ServiceTicket) =
         dao.deleteTicket(ticket.toEntity())
 

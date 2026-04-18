@@ -7,14 +7,14 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface UserDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertUser(user: UserEntity)
 
-    @Query("SELECT * FROM users WHERE id = :id AND passwordHash = :hash LIMIT 1")
-    suspend fun login(id: String, hash: String): UserEntity?
+    @Query("SELECT * FROM users WHERE username = :username AND passwordHash = :hash LIMIT 1")
+    suspend fun login(username: String, hash: String): UserEntity?
 
-    @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
-    suspend fun getUserById(id: String): UserEntity?
+    @Query("SELECT * FROM users WHERE username = :username LIMIT 1")
+    suspend fun getUserById(username: String): UserEntity?
 
     @Query("SELECT * FROM users")
     fun getAllUsers(): Flow<List<UserEntity>>

@@ -3,7 +3,6 @@ package com.example.campusassist.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.campusassist.data.local.SessionManager
-import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.User
 import com.example.campusassist.domain.model.UserRole
 import com.example.campusassist.domain.repository.DepartmentRepository
@@ -25,18 +24,12 @@ data class AuthUiState(
 // ── Registration state ────────────────────────────────────────────────────────
 
 data class RegisterUiState(
-    // Shared fields
     val role: UserRole = UserRole.USER,
     val username: String = "",
     val fullName: String = "",
     val password: String = "",
     val confirmPassword: String = "",
-
-    // Staff-only fields
-    val selectedDepartment: Department? = null,
-
-    // Async helpers
-    val departments: List<Department> = emptyList(),
+    val departmentText: String = "",
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val errorMessage: String? = null
@@ -59,7 +52,6 @@ class AuthViewModel @Inject constructor(
 
     init {
         checkSession()
-        loadDepartments()
     }
 
     // ── Session ───────────────────────────────────────────────────────────────
@@ -70,8 +62,8 @@ class AuthViewModel @Inject constructor(
             if (userId != null) {
                 val user = userRepository.getUserById(userId)
                 _authState.value = AuthUiState(
-                    isLoading  = false,
-                    isLoggedIn = user != null,
+                    isLoading   = false,
+                    isLoggedIn  = user != null,
                     currentUser = user
                 )
             } else {
@@ -91,10 +83,10 @@ class AuthViewModel @Inject constructor(
             _authState.update { it.copy(isLoading = true, errorMessage = null) }
             val user = userRepository.login(id.trim(), password)
             if (user != null) {
-                sessionManager.saveSession(user.id, user.role.name, user.name)
+                sessionManager.saveSession(user.username, user.role.name, user.fullname)
                 _authState.value = AuthUiState(isLoggedIn = true, currentUser = user)
             } else {
-                _authState.update { it.copy(isLoading = false, errorMessage = "Invalid ID or password") }
+                _authState.update { it.copy(isLoading = false, errorMessage = "Invalid username or password") }
             }
         }
     }
@@ -104,43 +96,25 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthUiState()
     }
 
-    // ── Registration — departments ────────────────────────────────────────────
-
-    private fun loadDepartments() {
-        viewModelScope.launch {
-            departmentRepository.getAllDepartments()
-                .catch { /* silently ignore; dropdown will just be empty */ }
-                .collect { list ->
-                    _registerState.update { it.copy(departments = list) }
-                }
-        }
-    }
-
     // ── Registration — field updates ──────────────────────────────────────────
 
     fun onRoleChange(role: UserRole) {
-        // Reset role-specific fields when switching to avoid stale state
         _registerState.update {
-            it.copy(
-                role = role,
-                selectedDepartment = null,
-                errorMessage = null
-            )
+            it.copy(role = role, departmentText = "", errorMessage = null)
         }
     }
 
-    fun onUsernameChange(v: String)           = _registerState.update { it.copy(username = v) }
-    fun onFullNameChange(v: String)           = _registerState.update { it.copy(fullName = v) }
-    fun onPasswordChange(v: String)           = _registerState.update { it.copy(password = v) }
-    fun onConfirmPasswordChange(v: String)    = _registerState.update { it.copy(confirmPassword = v) }
-    fun onDepartmentChange(dept: Department?) = _registerState.update { it.copy(selectedDepartment = dept) }
+    fun onUsernameChange(v: String)        = _registerState.update { it.copy(username = v) }
+    fun onFullNameChange(v: String)        = _registerState.update { it.copy(fullName = v) }
+    fun onPasswordChange(v: String)        = _registerState.update { it.copy(password = v) }
+    fun onConfirmPasswordChange(v: String) = _registerState.update { it.copy(confirmPassword = v) }
+    fun onDepartmentTextChange(v: String)  = _registerState.update { it.copy(departmentText = v) }
 
     // ── Registration — submit ─────────────────────────────────────────────────
 
     fun register() {
         val s = _registerState.value
 
-        // Validate shared fields
         when {
             s.username.isBlank() ->
                 return _registerState.update { it.copy(errorMessage = "Username is required") }
@@ -152,18 +126,22 @@ class AuthViewModel @Inject constructor(
                 return _registerState.update { it.copy(errorMessage = "Passwords do not match") }
         }
 
-        // Validate Staff-only fields
-        if (s.role == UserRole.STAFF && s.selectedDepartment == null) {
-            return _registerState.update { it.copy(errorMessage = "Please select a department") }
+        if (s.role == UserRole.STAFF && s.departmentText.isBlank()) {
+            return _registerState.update { it.copy(errorMessage = "Department is required") }
         }
 
         viewModelScope.launch {
             _registerState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
+                val departmentName = if (s.role == UserRole.STAFF) {
+                    departmentRepository.getOrCreateByName(s.departmentText).name
+                } else {
+                    null
+                }
                 val user = User(
-                    id         = s.username.trim(),
-                    name       = s.fullName.trim(),
-                    department = if (s.role == UserRole.STAFF) s.selectedDepartment?.name else null,
+                    username   = s.username.trim(),
+                    fullname   = s.fullName.trim(),
+                    department = departmentName,
                     role       = s.role
                 )
                 userRepository.register(user, s.password)

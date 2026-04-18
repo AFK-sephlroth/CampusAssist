@@ -34,7 +34,8 @@ object DatabaseModule {
         Room.databaseBuilder(ctx, AppDatabase::class.java, AppDatabase.DATABASE_NAME)
             .addMigrations(
                 AppDatabase.MIGRATION_2_3,
-                AppDatabase.MIGRATION_3_4 // Add the new migration here
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5
             )
             // .addCallback(AppDatabase.SEED_CALLBACK) <-- REMOVE THIS LINE
             .build()

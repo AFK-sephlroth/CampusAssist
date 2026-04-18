@@ -7,23 +7,23 @@ import com.example.campusassist.domain.model.NotificationType
 import com.example.campusassist.domain.model.User
 import com.example.campusassist.domain.model.UserRole
 
-
-fun UserEntity.toDomain(): User {
-    return User(
-        username = this.username,
-        fullname = this.fullname,
-        role = UserRole.valueOf(this.role),
-        department = this.department
-    )
-}
+fun UserEntity.toDomain() = User(
+    username   = username,
+    fullname   = fullname,
+    department = department,
+    role       = UserRole.valueOf(role),
+    createdAt  = createdAt,
+    isActive   = isActive
+)
 
 fun User.toEntity(passwordHash: String) = UserEntity(
-    username     = username,      // Changed from id
-    fullname     = fullname,      // Changed from name
+    username     = username,
+    fullname     = fullname,
     department   = department,
     role         = role.name,
     passwordHash = passwordHash,
-    createdAt    = System.currentTimeMillis() // Or use a property from User if you have one
+    createdAt    = createdAt,
+    isActive     = isActive
 )
 
 fun NotificationEntity.toDomain() = AppNotification(

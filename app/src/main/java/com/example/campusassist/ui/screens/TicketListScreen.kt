@@ -263,7 +263,7 @@ fun GradientHeader(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = (currentUser?.name?.take(2) ?: "?").uppercase(),
+                                text = (currentUser?.fullname?.take(2) ?: "?").uppercase(),
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 13.sp,
                                 color = CampusColors.NavyDeep

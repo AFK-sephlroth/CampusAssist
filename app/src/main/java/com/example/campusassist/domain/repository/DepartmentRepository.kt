@@ -9,4 +9,5 @@ interface DepartmentRepository {
     suspend fun addDepartment(department: Department)
     suspend fun updateDepartment(department: Department)
     suspend fun deleteDepartment(department: Department)
+    suspend fun getOrCreateByName(name: String): Department
 }

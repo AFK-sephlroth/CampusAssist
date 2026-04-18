@@ -1,6 +1,7 @@
 package com.example.campusassist.data.repository
 
 import com.example.campusassist.data.local.dao.DepartmentDao
+import com.example.campusassist.data.local.entity.DepartmentEntity
 import com.example.campusassist.data.mapper.toDomain
 import com.example.campusassist.data.mapper.toEntity
 import com.example.campusassist.domain.model.Department
@@ -29,4 +30,18 @@ class DepartmentRepositoryImpl @Inject constructor(
 
     override suspend fun deleteDepartment(department: Department) =
         dao.deleteDepartment(department.toEntity())
+
+    override suspend fun getOrCreateByName(name: String): Department {
+        val existing = dao.getByName(name)
+        if (existing != null) return existing.toDomain()
+
+        val trimmed = name.trim()
+        val newEntity = DepartmentEntity(
+            name      = trimmed,
+            code      = trimmed.take(4).uppercase(),
+            createdAt = System.currentTimeMillis()
+        )
+        val insertedId = dao.insertDepartment(newEntity)
+        return newEntity.copy(id = insertedId).toDomain()
+    }
 }

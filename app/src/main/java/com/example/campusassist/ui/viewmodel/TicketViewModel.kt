@@ -25,10 +25,13 @@ data class CreateTicketUiState(
     val category: ServiceCategory = ServiceCategory.IT,
     val priority: TicketPriority = TicketPriority.MEDIUM,
     val departmentId: Long? = null,
+    val attachmentUris: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val errorMessage: String? = null
 )
+
+private const val MAX_ATTACHMENTS = 3
 
 @HiltViewModel
 class TicketViewModel @Inject constructor(
@@ -68,14 +71,35 @@ class TicketViewModel @Inject constructor(
         }
     }
 
-    // Create ticket form updates
-    fun onTitleChange(title: String) = _createUiState.update { it.copy(title = title) }
-    fun onDescriptionChange(desc: String) = _createUiState.update { it.copy(description = desc) }
+    // ── Create ticket form updates ────────────────────────────────────────────
+
+    fun onTitleChange(title: String)           = _createUiState.update { it.copy(title = title) }
+    fun onDescriptionChange(desc: String)      = _createUiState.update { it.copy(description = desc) }
     fun onCategoryChange(cat: ServiceCategory) = _createUiState.update { it.copy(category = cat) }
-    fun onPriorityChange(pri: TicketPriority) = _createUiState.update { it.copy(priority = pri) }
+    fun onPriorityChange(pri: TicketPriority)  = _createUiState.update { it.copy(priority = pri) }
 
     fun onDepartmentChange(departmentId: Long?) =
         _createUiState.update { it.copy(departmentId = departmentId) }
+
+    /**
+     * Appends new URIs to the attachment list, capping at MAX_ATTACHMENTS (3).
+     * Duplicate URIs are ignored.
+     */
+    fun onAttachmentsChange(uris: List<String>) {
+        _createUiState.update { state ->
+            val combined = (state.attachmentUris + uris).distinct()
+            state.copy(attachmentUris = combined.take(MAX_ATTACHMENTS))
+        }
+    }
+
+    /**
+     * Removes a single attachment URI by value.
+     */
+    fun onAttachmentRemove(uri: String) {
+        _createUiState.update { state ->
+            state.copy(attachmentUris = state.attachmentUris.filter { it != uri })
+        }
+    }
 
     fun submitTicket() {
         val state = _createUiState.value
@@ -87,11 +111,15 @@ class TicketViewModel @Inject constructor(
             _createUiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
                 val ticket = ServiceTicket(
-                    title = state.title,
-                    description = state.description,
-                    category = state.category,
-                    priority = state.priority,
-                    departmentId = state.departmentId
+                    title          = state.title,
+                    description    = state.description,
+                    category       = state.category,
+                    priority       = state.priority,
+                    departmentId   = state.departmentId,
+                    attachmentUris = state.attachmentUris
+                        .filter { it.isNotBlank() }
+                        .joinToString(",")
+                        .ifEmpty { null }
                 )
                 repository.createTicket(ticket)
                 _createUiState.update { it.copy(isLoading = false, isSuccess = true) }
@@ -102,9 +130,23 @@ class TicketViewModel @Inject constructor(
         }
     }
 
+    // ── Ticket updates ────────────────────────────────────────────────────────
+
     fun updateTicketStatus(ticket: ServiceTicket, newStatus: TicketStatus) {
         viewModelScope.launch {
-            repository.updateTicket(ticket.copy(status = newStatus, updatedAt = System.currentTimeMillis()))
+            repository.updateStatus(ticket.id, newStatus)
+            if (_selectedTicket.value?.id == ticket.id) {
+                _selectedTicket.value = repository.getTicketById(ticket.id)
+            }
+        }
+    }
+
+    fun updateNotes(ticketId: Long, notes: String?) {
+        viewModelScope.launch {
+            repository.updateNotes(ticketId, notes)
+            if (_selectedTicket.value?.id == ticketId) {
+                _selectedTicket.value = repository.getTicketById(ticketId)
+            }
         }
     }
 

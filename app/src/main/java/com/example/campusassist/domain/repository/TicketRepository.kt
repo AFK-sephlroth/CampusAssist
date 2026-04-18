@@ -10,6 +10,8 @@ interface TicketRepository {
     suspend fun getTicketById(id: Long): ServiceTicket?
     suspend fun createTicket(ticket: ServiceTicket): Long
     suspend fun updateTicket(ticket: ServiceTicket)
+    suspend fun updateStatus(id: Long, status: TicketStatus)
+    suspend fun updateNotes(id: Long, notes: String?)
     suspend fun deleteTicket(ticket: ServiceTicket)
     suspend fun getUnsyncedTickets(): List<ServiceTicket>
     suspend fun markAsSynced(id: Long)

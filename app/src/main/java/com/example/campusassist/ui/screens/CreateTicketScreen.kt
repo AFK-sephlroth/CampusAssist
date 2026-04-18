@@ -1,5 +1,8 @@
 package com.example.campusassist.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,7 +12,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,17 +25,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.ServiceCategory
 import com.example.campusassist.domain.model.TicketPriority
 import com.example.campusassist.ui.theme.CampusColors
-import com.example.campusassist.ui.viewmodel.TicketViewModel
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import com.example.campusassist.domain.model.Department
 import com.example.campusassist.ui.viewmodel.DepartmentViewModel
+import com.example.campusassist.ui.viewmodel.TicketViewModel
+
+// TODO: Add Coil to libs.versions.toml and app/build.gradle.kts, then uncomment:
+// implementation("io.coil-kt:coil-compose:<latest>")
+// import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,12 +47,20 @@ fun CreateTicketScreen(
     departmentViewModel: DepartmentViewModel,
     onNavigateBack: () -> Unit
 ) {
-    val uiState by viewModel.createUiState.collectAsState()
+    val uiState  by viewModel.createUiState.collectAsState()
     val deptState by departmentViewModel.uiState.collectAsState()
-
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onNavigateBack()
+    }
+
+    // Multi-image picker — appends selected URIs; ViewModel caps at 3
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            viewModel.onAttachmentsChange(uris.map { it.toString() })
+        }
     }
 
     Scaffold(
@@ -54,8 +72,8 @@ fun CreateTicketScreen(
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(Color(0xFF0D1F3C), Color(0xFF1A2E50)),
-                            start = Offset(0f, 0f),
-                            end = Offset(Float.POSITIVE_INFINITY, 0f)
+                            start  = Offset(0f, 0f),
+                            end    = Offset(Float.POSITIVE_INFINITY, 0f)
                         )
                     )
                     .padding(horizontal = 4.dp)
@@ -63,7 +81,7 @@ fun CreateTicketScreen(
                 TopAppBar(
                     title = {
                         Column {
-                            Text("New Request", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = CampusColors.TextPrimary)
+                            Text("New Request",    fontWeight = FontWeight.Bold, fontSize = 18.sp, color = CampusColors.TextPrimary)
                             Text("Fill in the details below", fontSize = 11.sp, color = CampusColors.TextSecondary)
                         }
                     },
@@ -93,38 +111,78 @@ fun CreateTicketScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Title field
+            // ── Title ─────────────────────────────────────────────────────────
             FormSection(label = "TICKET TITLE") {
                 OutlinedTextField(
-                    value = uiState.title,
+                    value         = uiState.title,
                     onValueChange = viewModel::onTitleChange,
-                    placeholder = { Text("e.g., Projector not working in Room 301", color = CampusColors.TextMuted) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    isError = uiState.errorMessage != null && uiState.title.isBlank(),
-                    colors = outlinedTextFieldColors(),
-                    singleLine = true
+                    placeholder   = { Text("e.g., Projector not working in Room 301", color = CampusColors.TextMuted) },
+                    modifier      = Modifier.fillMaxWidth(),
+                    shape         = RoundedCornerShape(12.dp),
+                    isError       = uiState.errorMessage != null && uiState.title.isBlank(),
+                    colors        = outlinedTextFieldColors(),
+                    singleLine    = true
                 )
             }
 
-            // Description field
+            // ── Description ───────────────────────────────────────────────────
             FormSection(label = "DESCRIPTION") {
                 OutlinedTextField(
-                    value = uiState.description,
+                    value         = uiState.description,
                     onValueChange = viewModel::onDescriptionChange,
-                    placeholder = { Text("Describe the issue in detail...", color = CampusColors.TextMuted) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    minLines = 4,
-                    maxLines = 6,
-                    colors = outlinedTextFieldColors()
+                    placeholder   = { Text("Describe the issue in detail...", color = CampusColors.TextMuted) },
+                    modifier      = Modifier.fillMaxWidth(),
+                    shape         = RoundedCornerShape(12.dp),
+                    minLines      = 4,
+                    maxLines      = 6,
+                    colors        = outlinedTextFieldColors()
                 )
             }
 
-            // Category selector
+            // ── Attach photos ─────────────────────────────────────────────────
+            FormSection(label = "ATTACHMENTS  (max 3)") {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment     = Alignment.CenterVertically
+                ) {
+                    // Thumbnail previews
+                    uiState.attachmentUris.forEach { uriString ->
+                        AttachmentThumbnail(
+                            uriString = uriString,
+                            onRemove  = { viewModel.onAttachmentRemove(uriString) }
+                        )
+                    }
+
+                    // "+" button — hidden once 3 images are selected
+                    if (uiState.attachmentUris.size < 3) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surface)
+                                .border(
+                                    1.5.dp,
+                                    CampusColors.Amber.copy(alpha = 0.6f),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .clickable { imagePicker.launch("image/*") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector        = Icons.Default.Add,
+                                contentDescription = "Add photo",
+                                tint               = CampusColors.Amber,
+                                modifier           = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Category ──────────────────────────────────────────────────────
             FormSection(label = "SERVICE CATEGORY") {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier              = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     ServiceCategory.entries.forEach { category ->
@@ -149,20 +207,20 @@ fun CreateTicketScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = category.displayName,
-                                color = if (isSelected) CampusColors.NavyDeep else catColor,
+                                text       = category.displayName,
+                                color      = if (isSelected) CampusColors.NavyDeep else catColor,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 12.sp
+                                fontSize   = 12.sp
                             )
                         }
                     }
                 }
             }
 
-            // Priority selector
+            // ── Priority ──────────────────────────────────────────────────────
             FormSection(label = "PRIORITY LEVEL") {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier              = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TicketPriority.entries.forEach { priority ->
@@ -187,7 +245,7 @@ fun CreateTicketScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
+                                verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Box(
@@ -199,10 +257,10 @@ fun CreateTicketScreen(
                                         )
                                 )
                                 Text(
-                                    text = priority.displayName,
-                                    color = if (isSelected) CampusColors.NavyDeep else priColor,
+                                    text       = priority.displayName,
+                                    color      = if (isSelected) CampusColors.NavyDeep else priColor,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 12.sp
+                                    fontSize   = 12.sp
                                 )
                             }
                         }
@@ -210,16 +268,16 @@ fun CreateTicketScreen(
                 }
             }
 
-            // Department selector
+            // ── Department ────────────────────────────────────────────────────
             FormSection(label = "DEPARTMENT") {
                 DepartmentDropdown(
                     departments = deptState.departments,
-                    selectedId = uiState.departmentId,
-                    onSelect = viewModel::onDepartmentChange
+                    selectedId  = uiState.departmentId,
+                    onSelect    = viewModel::onDepartmentChange
                 )
             }
 
-            // Error message
+            // ── Error ─────────────────────────────────────────────────────────
             uiState.errorMessage?.let { error ->
                 Row(
                     modifier = Modifier
@@ -228,7 +286,7 @@ fun CreateTicketScreen(
                         .background(CampusColors.PriorityHigh.copy(alpha = 0.1f))
                         .border(1.dp, CampusColors.PriorityHigh.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
                         .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text("⚠", fontSize = 14.sp)
@@ -238,31 +296,31 @@ fun CreateTicketScreen(
 
             Spacer(Modifier.height(4.dp))
 
-            // Submit button
+            // ── Submit ────────────────────────────────────────────────────────
             Button(
-                onClick = viewModel::submitTicket,
+                onClick  = viewModel::submitTicket,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
-                enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
+                enabled  = !uiState.isLoading,
+                shape    = RoundedCornerShape(14.dp),
+                colors   = ButtonDefaults.buttonColors(
                     containerColor = CampusColors.Amber,
-                    contentColor = CampusColors.NavyDeep
+                    contentColor   = CampusColors.NavyDeep
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier    = Modifier.size(20.dp),
                         strokeWidth = 2.5.dp,
-                        color = CampusColors.NavyDeep
+                        color       = CampusColors.NavyDeep
                     )
                 } else {
                     Text(
                         "Submit Request",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
+                        fontWeight    = FontWeight.Bold,
+                        fontSize      = 15.sp,
                         letterSpacing = 0.3.sp
                     )
                 }
@@ -273,14 +331,67 @@ fun CreateTicketScreen(
     }
 }
 
+// ── Attachment thumbnail ──────────────────────────────────────────────────────
+
+@Composable
+private fun AttachmentThumbnail(
+    uriString: String,
+    onRemove:  () -> Unit
+) {
+    Box(modifier = Modifier.size(72.dp)) {
+        // TODO: Replace this placeholder with AsyncImage once Coil is added:
+        //   implementation("io.coil-kt:coil-compose:<latest>") in build.gradle.kts
+        //
+        // AsyncImage(
+        //     model             = Uri.parse(uriString),
+        //     contentDescription = "Attachment preview",
+        //     contentScale      = ContentScale.Crop,
+        //     modifier          = Modifier
+        //         .fillMaxSize()
+        //         .clip(RoundedCornerShape(10.dp))
+        // )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(10.dp))
+                .background(CampusColors.TextMuted.copy(alpha = 0.25f))
+                .border(1.dp, CampusColors.TextMuted.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("🖼", fontSize = 24.sp)
+        }
+
+        // "×" remove button — top-right corner
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 4.dp, y = (-4).dp)
+                .clip(CircleShape)
+                .background(CampusColors.PriorityHigh)
+                .clickable { onRemove() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector        = Icons.Default.Close,
+                contentDescription = "Remove attachment",
+                tint               = Color.White,
+                modifier           = Modifier.size(12.dp)
+            )
+        }
+    }
+}
+
+// ── Shared composables ────────────────────────────────────────────────────────
+
 @Composable
 fun FormSection(label: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = CampusColors.TextSecondary,
+            text          = label,
+            fontSize      = 11.sp,
+            fontWeight    = FontWeight.Bold,
+            color         = CampusColors.TextSecondary,
             letterSpacing = 1.2.sp
         )
         content()
@@ -290,19 +401,19 @@ fun FormSection(label: String, content: @Composable () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun outlinedTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = CampusColors.Amber,
+    focusedBorderColor   = CampusColors.Amber,
     unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-    focusedLabelColor = CampusColors.Amber,
-    cursorColor = CampusColors.Amber,
-    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+    focusedLabelColor    = CampusColors.Amber,
+    cursorColor          = CampusColors.Amber,
+    focusedTextColor     = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor   = MaterialTheme.colorScheme.onSurface
 )
 
 @Composable
 fun DepartmentDropdown(
     departments: List<Department>,
-    selectedId: Long?,
-    onSelect: (Long?) -> Unit
+    selectedId:  Long?,
+    onSelect:    (Long?) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selected = departments.firstOrNull { it.id == selectedId }
@@ -322,20 +433,18 @@ fun DepartmentDropdown(
                 .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier              = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment     = Alignment.CenterVertically
             ) {
                 Text(
-                    text = selected?.name ?: "Select a department",
-                    color = if (selected != null) MaterialTheme.colorScheme.onSurface
-                    else CampusColors.TextMuted,
-                    fontSize = 14.sp,
+                    text       = selected?.name ?: "Select a department",
+                    color      = if (selected != null) MaterialTheme.colorScheme.onSurface else CampusColors.TextMuted,
+                    fontSize   = 14.sp,
                     fontWeight = if (selected != null) FontWeight.Medium else FontWeight.Normal
                 )
                 Icon(
-                    imageVector = if (expanded) Icons.Default.ArrowDropUp
-                    else Icons.Default.ArrowDropDown,
+                    imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                     contentDescription = null,
                     tint = CampusColors.Amber
                 )
@@ -343,48 +452,26 @@ fun DepartmentDropdown(
         }
 
         DropdownMenu(
-            expanded = expanded,
+            expanded         = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier
+            modifier         = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface)
         ) {
-            // None option
             DropdownMenuItem(
-                text = {
-                    Text(
-                        "None / Not sure",
-                        color = CampusColors.TextSecondary,
-                        fontSize = 13.sp
-                    )
-                },
-                onClick = {
-                    onSelect(null)
-                    expanded = false
-                }
+                text    = { Text("None / Not sure", color = CampusColors.TextSecondary, fontSize = 13.sp) },
+                onClick = { onSelect(null); expanded = false }
             )
             HorizontalDivider()
             departments.forEach { dept ->
                 DropdownMenuItem(
                     text = {
                         Column {
-                            Text(
-                                text = dept.name,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = dept.code,
-                                color = CampusColors.TextSecondary,
-                                fontSize = 11.sp
-                            )
+                            Text(dept.name, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(dept.code, color = CampusColors.TextSecondary, fontSize = 11.sp)
                         }
                     },
-                    onClick = {
-                        onSelect(dept.id)
-                        expanded = false
-                    },
+                    onClick  = { onSelect(dept.id); expanded = false },
                     modifier = if (dept.id == selectedId)
                         Modifier.background(CampusColors.Amber.copy(alpha = 0.08f))
                     else Modifier

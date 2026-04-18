@@ -13,8 +13,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +24,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.UserRole
 import com.example.campusassist.ui.theme.CampusColors
 import com.example.campusassist.ui.viewmodel.AuthViewModel
@@ -99,16 +96,16 @@ fun RegisterScreen(
                 onValueChange = viewModel::onFullNameChange
             )
 
-            // ── Staff-only: department dropdown ───────────────────────────────
+            // ── Staff-only: department free-text ──────────────────────────────
             AnimatedVisibility(
                 visible = state.role == UserRole.STAFF,
                 enter = fadeIn(tween(200)) + expandVertically(tween(200)),
                 exit  = fadeOut(tween(150)) + shrinkVertically(tween(150))
             ) {
-                DepartmentDropdown(
-                    departments = state.departments,
-                    selected    = state.selectedDepartment,
-                    onSelect    = viewModel::onDepartmentChange
+                RegisterField(
+                    label         = "Department *",
+                    value         = state.departmentText,
+                    onValueChange = viewModel::onDepartmentTextChange
                 )
             }
 
@@ -184,9 +181,9 @@ private fun RoleToggle(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             "ACCOUNT TYPE",
-            fontSize     = 11.sp,
-            fontWeight   = FontWeight.Bold,
-            color        = CampusColors.TextSecondary,
+            fontSize      = 11.sp,
+            fontWeight    = FontWeight.Bold,
+            color         = CampusColors.TextSecondary,
             letterSpacing = 1.2.sp
         )
         Row(
@@ -216,104 +213,6 @@ private fun RoleToggle(
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         fontSize   = 14.sp
                     )
-                }
-            }
-        }
-    }
-}
-
-// ── Department Dropdown ───────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DepartmentDropdown(
-    departments: List<Department>,
-    selected:    Department?,
-    onSelect:    (Department?) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            "DEPARTMENT *",
-            fontSize      = 11.sp,
-            fontWeight    = FontWeight.Bold,
-            color         = CampusColors.TextSecondary,
-            letterSpacing = 1.2.sp
-        )
-
-        ExposedDropdownMenuBox(
-            expanded         = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                value         = selected?.name ?: "",
-                onValueChange = {},
-                readOnly      = true,
-                placeholder   = { Text("Select a department", color = CampusColors.TextMuted) },
-                trailingIcon  = {
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        tint = CampusColors.TextSecondary
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
-                shape  = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor   = CampusColors.Amber,
-                    unfocusedBorderColor = CampusColors.TextMuted,
-                    focusedTextColor     = CampusColors.TextPrimary,
-                    unfocusedTextColor   = CampusColors.TextPrimary,
-                    cursorColor          = CampusColors.Amber
-                )
-            )
-
-            ExposedDropdownMenu(
-                expanded         = expanded,
-                onDismissRequest = { expanded = false },
-                modifier         = Modifier.background(CampusColors.NavyCard)
-            ) {
-                if (departments.isEmpty()) {
-                    DropdownMenuItem(
-                        text    = { Text("No departments available", color = CampusColors.TextMuted, fontSize = 13.sp) },
-                        onClick = { expanded = false },
-                        enabled = false
-                    )
-                } else {
-                    departments.forEach { dept ->
-                        val isSelected = selected?.id == dept.id
-                        DropdownMenuItem(
-                            text = {
-                                Row(
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text       = dept.name,
-                                        color      = if (isSelected) CampusColors.Amber else CampusColors.TextPrimary,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                        fontSize   = 14.sp
-                                    )
-                                    Text(
-                                        text     = dept.code,
-                                        color    = CampusColors.TextMuted,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            },
-                            onClick = {
-                                onSelect(dept)
-                                expanded = false
-                            },
-                            modifier = Modifier.background(
-                                if (isSelected) CampusColors.Amber.copy(alpha = 0.08f)
-                                else androidx.compose.ui.graphics.Color.Transparent
-                            )
-                        )
-                    }
                 }
             }
         }

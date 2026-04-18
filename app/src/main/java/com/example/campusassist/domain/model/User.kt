@@ -1,10 +1,12 @@
 package com.example.campusassist.domain.model
 
 data class User(
-    val username: String, // Changed from id or name
+    val username: String,
     val fullname: String,
     val role: UserRole,
-    val department: String? = null // Make nullable for normal users
+    val department: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val isActive: Boolean = true
 )
 
 enum class UserRole(val displayName: String) {

@@ -22,24 +22,34 @@ sealed class Screen(val route: String) {
 
 @Composable
 fun AppNavigation() {
-    val navController   = rememberNavController()
-    val authViewModel   : AuthViewModel        = hiltViewModel()
-    val ticketViewModel : TicketViewModel       = hiltViewModel()
-    val notifViewModel  : NotificationViewModel = hiltViewModel()
-    val themeViewModel  : ThemeViewModel        = hiltViewModel()
-    val syncViewModel   : SyncViewModel         = hiltViewModel()
-    val departmentViewModel: DepartmentViewModel = hiltViewModel()
+    val navController      = rememberNavController()
+    val authViewModel      : AuthViewModel        = hiltViewModel()
+    val ticketViewModel    : TicketViewModel       = hiltViewModel()
+    val notifViewModel     : NotificationViewModel = hiltViewModel()
+    val themeViewModel     : ThemeViewModel        = hiltViewModel()
+    val syncViewModel      : SyncViewModel         = hiltViewModel()
+    val departmentViewModel: DepartmentViewModel   = hiltViewModel()
 
     val authState by authViewModel.authState.collectAsState()
 
     LaunchedEffect(authState.isLoggedIn) {
         if (authState.isLoggedIn) {
             authState.currentUser?.let {
-                notifViewModel.setUser(it.id)
-                syncViewModel.setUser(it.id)   // start periodic sync
+                notifViewModel.setUser(it.username)
+                syncViewModel.setUser(it.username)
             }
             navController.navigate(Screen.TicketList.route) {
                 popUpTo(Screen.Login.route) { inclusive = true }
+            }
+        } else {
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            if (currentRoute != null
+                && currentRoute != Screen.Login.route
+                && currentRoute != Screen.Register.route
+            ) {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(0) { inclusive = true }
+                }
             }
         }
     }
@@ -64,46 +74,46 @@ fun AppNavigation() {
 
         composable(Screen.TicketList.route) {
             TicketListScreen(
-                viewModel = ticketViewModel,
-                onCreateTicket = { navController.navigate(Screen.CreateTicket.route) },
-                onTicketClick = { ticketId ->
+                viewModel            = ticketViewModel,
+                onCreateTicket       = { navController.navigate(Screen.CreateTicket.route) },
+                onTicketClick        = { ticketId ->
                     navController.navigate(Screen.TicketDetail.createRoute(ticketId))
                 },
-                onProfileClick = { navController.navigate(Screen.Profile.route) },
+                onProfileClick       = { navController.navigate(Screen.Profile.route) },
                 onNotificationsClick = { navController.navigate(Screen.Notifications.route) },
-                notifViewModel = notifViewModel,
-                syncViewModel = syncViewModel,
-                currentUser = authState.currentUser,
-                departmentViewModel = departmentViewModel,
+                notifViewModel       = notifViewModel,
+                syncViewModel        = syncViewModel,
+                currentUser          = authState.currentUser,
+                departmentViewModel  = departmentViewModel,
             )
         }
 
         composable(Screen.CreateTicket.route) {
             CreateTicketScreen(
-                viewModel = ticketViewModel,
+                viewModel           = ticketViewModel,
                 departmentViewModel = departmentViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack      = { navController.popBackStack() }
             )
         }
 
         composable(
-            route = Screen.TicketDetail.route,
+            route     = Screen.TicketDetail.route,
             arguments = listOf(navArgument("ticketId") { type = NavType.LongType })
         ) { backStack ->
             val id = backStack.arguments?.getLong("ticketId") ?: return@composable
             TicketDetailScreen(
-                ticketId = id,
-                viewModel = ticketViewModel,
+                ticketId            = id,
+                viewModel           = ticketViewModel,
                 departmentViewModel = departmentViewModel,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack      = { navController.popBackStack() }
             )
         }
 
         composable(Screen.Profile.route) {
             authState.currentUser?.let { user ->
                 ProfileScreen(
-                    user = user,
-                    authViewModel = authViewModel,
+                    user           = user,
+                    authViewModel  = authViewModel,
                     themeViewModel = themeViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
@@ -112,7 +122,7 @@ fun AppNavigation() {
 
         composable(Screen.Notifications.route) {
             NotificationScreen(
-                viewModel = notifViewModel,
+                viewModel      = notifViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

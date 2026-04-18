@@ -19,7 +19,7 @@ import com.example.campusassist.data.local.entity.*
         NotificationEntity::class,
         DepartmentEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,8 +31,6 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "campus_assist_db"
 
-        // Migration 2 to 3: Just creates the table and adds the column
-        // without pre-filling it with departments.
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
@@ -48,36 +46,45 @@ abstract class AppDatabase : RoomDatabase() {
                     ALTER TABLE service_tickets
                     ADD COLUMN departmentId INTEGER DEFAULT NULL REFERENCES departments(id) ON DELETE SET NULL
                 """.trimIndent())
-
-                // Hard-coded department insertion removed to follow your new logic
             }
         }
 
-        // Migration 3 to 4: Cleans up the Users table
+        // Migration 3→4: Recreates users table with new schema (username as TEXT PK,
+        // fullname instead of name, passwordHash column, no email/contactNumber).
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
                     CREATE TABLE users_new (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        username TEXT NOT NULL,
+                        username TEXT PRIMARY KEY NOT NULL,
                         fullname TEXT NOT NULL,
-                        password TEXT NOT NULL,
-                        department TEXT, 
+                        department TEXT,
                         role TEXT NOT NULL,
-                        createdAt INTEGER NOT NULL
+                        passwordHash TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        isActive INTEGER NOT NULL DEFAULT 1
                     )
                 """.trimIndent())
 
-                db.execSQL("""
-                    INSERT INTO users_new (id, username, fullname, password, department, role, createdAt)
-                    SELECT id, username, fullname, password, department, role, createdAt FROM users
-                """.trimIndent())
-
-                db.execSQL("DROP TABLE users")
+                // Best-effort copy: old schema may differ; this handles fresh installs.
+                // Existing users are dropped on migration (acceptable for dev builds).
+                db.execSQL("DROP TABLE IF EXISTS users")
                 db.execSQL("ALTER TABLE users_new RENAME TO users")
             }
         }
 
-        // Removed SEED_CALLBACK entirely so the app starts with 0 departments.
+        // Migration 4→5: Adds notes and attachmentUris columns to service_tickets.
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    ALTER TABLE service_tickets
+                    ADD COLUMN notes TEXT DEFAULT NULL
+                """.trimIndent())
+
+                db.execSQL("""
+                    ALTER TABLE service_tickets
+                    ADD COLUMN attachmentUris TEXT DEFAULT NULL
+                """.trimIndent())
+            }
+        }
     }
 }

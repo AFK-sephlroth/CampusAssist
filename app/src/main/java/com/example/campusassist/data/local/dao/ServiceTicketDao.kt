@@ -30,4 +30,10 @@ interface ServiceTicketDao {
 
     @Query("UPDATE service_tickets SET isSynced = 1 WHERE id = :id")
     suspend fun markAsSynced(id: Long)
+
+    @Query("UPDATE service_tickets SET status = :status, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateStatus(id: Long, status: String, updatedAt: Long)
+
+    @Query("UPDATE service_tickets SET notes = :notes, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateNotes(id: Long, notes: String?, updatedAt: Long)
 }

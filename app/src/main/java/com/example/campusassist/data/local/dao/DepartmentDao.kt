@@ -23,5 +23,6 @@ interface DepartmentDao {
     @Query("SELECT * FROM departments WHERE id = :id LIMIT 1")
     suspend fun getDepartmentById(id: Long): DepartmentEntity?
 
-
+    @Query("SELECT * FROM departments WHERE LOWER(name) = LOWER(:name) LIMIT 1")
+    suspend fun getByName(name: String): DepartmentEntity?
 }
