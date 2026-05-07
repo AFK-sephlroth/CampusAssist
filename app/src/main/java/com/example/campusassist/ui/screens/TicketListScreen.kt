@@ -28,10 +28,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.ServiceTicket
 import com.example.campusassist.domain.model.TicketStatus
@@ -190,18 +195,22 @@ fun GradientHeader(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
+                    // Derive the display name: use the first word of fullname
+                    // (i.e. first name only), fall back to username, and if
+                    // neither is available the greeting reads "Welcome Back!" alone.
+                    val displayName = currentUser?.fullname
+                        ?.takeIf { it.isNotBlank() }
+                        ?.split(" ")?.firstOrNull()
+                        ?: currentUser?.username?.takeIf { it.isNotBlank() }
+
                     Text(
-                        text = "CampusAssist+",
+                        text = if (displayName != null) "Welcome Back, $displayName!" else "Welcome Back!",
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         color = CampusColors.TextPrimary,
-                        letterSpacing = (-0.5).sp
-                    )
-                    Text(
-                        text = "Smart Campus Services",
-                        fontSize = 12.sp,
-                        color = CampusColors.TextSecondary,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = (-0.5).sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
 
@@ -262,12 +271,24 @@ fun GradientHeader(
                                 .clickable { onProfileClick() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = (currentUser?.fullname?.take(2) ?: "?").uppercase(),
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 13.sp,
-                                color = CampusColors.NavyDeep
-                            )
+                            if (currentUser?.profileImageUri != null) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(Uri.parse(currentUser.profileImageUri))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Profile photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                )
+                            } else {
+                                Text(
+                                    text = (currentUser?.fullname?.take(2) ?: "?").uppercase(),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp,
+                                    color = CampusColors.NavyDeep
+                                )
+                            }
                         }
                     }
                 }
@@ -488,6 +509,38 @@ fun TicketCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(10.dp))
+            }
+
+            // Attachment image strip — show up to 3 thumbnails if present
+            val attachments = ticket.attachmentUris
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                .orEmpty()
+            if (attachments.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    attachments.take(3).forEach { uriString ->
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(android.net.Uri.parse(uriString))
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Ticket attachment",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(90.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                    RoundedCornerShape(10.dp)
+                                )
+                        )
+                    }
+                }
             }
 
             // Bottom row: category + priority + sync + date

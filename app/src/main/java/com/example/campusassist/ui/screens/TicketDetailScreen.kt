@@ -1,5 +1,6 @@
 package com.example.campusassist.ui.screens
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,9 +21,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.campusassist.domain.model.ServiceTicket
 import com.example.campusassist.domain.model.TicketStatus
 import com.example.campusassist.ui.theme.CampusColors
@@ -43,6 +51,7 @@ fun TicketDetailScreen(
     val departmentName = deptState.departments
         .firstOrNull { it.id == ticket?.departmentId }?.name
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var lightboxUri by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(ticketId) { viewModel.loadTicketById(ticketId) }
 
@@ -125,6 +134,39 @@ fun TicketDetailScreen(
                     }
                 }
 
+                // ── Attachments ───────────────────────────────────────────────
+                val attachments = t.attachmentUris
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotBlank() }
+                    .orEmpty()
+                if (attachments.isNotEmpty()) {
+                    DetailCard(title = "ATTACHMENTS (${attachments.size})") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            attachments.forEach { uriString ->
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(Uri.parse(uriString))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Attachment",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(
+                                            1.dp,
+                                            MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                                            RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { lightboxUri = uriString }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // ── Ticket Info ───────────────────────────────────────────────
                 DetailCard(title = "TICKET INFO") {
                     InfoRow("Created", formatDetailDate(t.createdAt))
@@ -188,6 +230,50 @@ fun TicketDetailScreen(
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = CampusColors.Amber)
+        }
+    }
+
+    // ── Fullscreen image lightbox ─────────────────────────────────────────────
+    lightboxUri?.let { uri ->
+        Dialog(
+            onDismissRequest = { lightboxUri = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { lightboxUri = null },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(Uri.parse(uri))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Full image",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+                // Close button
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .clickable { lightboxUri = null },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 

@@ -10,6 +10,7 @@ interface UserRepository {
     suspend fun register(user: User, password: String)
     suspend fun getUserById(id: String): User?
     suspend fun updateUser(user: User, password: String)
+    suspend fun updateProfileImage(username: String, uri: String?)
     fun getAllUsers(): Flow<List<User>>
     fun getUsersByRole(role: UserRole): Flow<List<User>>
 }

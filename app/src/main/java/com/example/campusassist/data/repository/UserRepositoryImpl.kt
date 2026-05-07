@@ -29,6 +29,9 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun updateUser(user: User, password: String) =
         dao.updateUser(user.toEntity(password.sha256()))
 
+    override suspend fun updateProfileImage(username: String, uri: String?) =
+        dao.updateProfileImage(username, uri)
+
     override fun getAllUsers(): Flow<List<User>> =
         dao.getAllUsers().map { list -> list.map { it.toDomain() } }
 

@@ -26,9 +26,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.campusassist.domain.model.Department
 import com.example.campusassist.domain.model.ServiceCategory
 import com.example.campusassist.domain.model.TicketPriority
@@ -36,7 +39,7 @@ import com.example.campusassist.ui.theme.CampusColors
 import com.example.campusassist.ui.viewmodel.DepartmentViewModel
 import com.example.campusassist.ui.viewmodel.TicketViewModel
 
-// TODO: Add Coil to libs.versions.toml and app/build.gradle.kts, then uncomment:
+// Coil is available — AsyncImage is used in AttachmentThumbnail below.
 // implementation("io.coil-kt:coil-compose:<latest>")
 // import coil.compose.AsyncImage
 
@@ -339,27 +342,17 @@ private fun AttachmentThumbnail(
     onRemove:  () -> Unit
 ) {
     Box(modifier = Modifier.size(72.dp)) {
-        // TODO: Replace this placeholder with AsyncImage once Coil is added:
-        //   implementation("io.coil-kt:coil-compose:<latest>") in build.gradle.kts
-        //
-        // AsyncImage(
-        //     model             = Uri.parse(uriString),
-        //     contentDescription = "Attachment preview",
-        //     contentScale      = ContentScale.Crop,
-        //     modifier          = Modifier
-        //         .fillMaxSize()
-        //         .clip(RoundedCornerShape(10.dp))
-        // )
-        Box(
-            modifier = Modifier
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(Uri.parse(uriString))
+                .crossfade(true)
+                .build(),
+            contentDescription = "Attachment preview",
+            contentScale       = ContentScale.Crop,
+            modifier           = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(10.dp))
-                .background(CampusColors.TextMuted.copy(alpha = 0.25f))
-                .border(1.dp, CampusColors.TextMuted.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("🖼", fontSize = 24.sp)
-        }
+        )
 
         // "×" remove button — top-right corner
         Box(

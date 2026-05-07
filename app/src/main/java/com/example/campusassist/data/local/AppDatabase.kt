@@ -19,7 +19,7 @@ import com.example.campusassist.data.local.entity.*
         NotificationEntity::class,
         DepartmentEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -83,6 +83,15 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("""
                     ALTER TABLE service_tickets
                     ADD COLUMN attachmentUris TEXT DEFAULT NULL
+                """.trimIndent())
+            }
+        }
+        // Migration 5→6: Adds profileImageUri column to users table.
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    ALTER TABLE users
+                    ADD COLUMN profileImageUri TEXT DEFAULT NULL
                 """.trimIndent())
             }
         }

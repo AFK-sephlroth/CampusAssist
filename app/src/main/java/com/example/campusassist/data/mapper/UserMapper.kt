@@ -8,22 +8,24 @@ import com.example.campusassist.domain.model.User
 import com.example.campusassist.domain.model.UserRole
 
 fun UserEntity.toDomain() = User(
-    username   = username,
-    fullname   = fullname,
-    department = department,
-    role       = UserRole.valueOf(role),
-    createdAt  = createdAt,
-    isActive   = isActive
+    username         = username,
+    fullname         = fullname,
+    department       = department,
+    role             = UserRole.valueOf(role),
+    createdAt        = createdAt,
+    isActive         = isActive,
+    profileImageUri  = profileImageUri
 )
 
 fun User.toEntity(passwordHash: String) = UserEntity(
-    username     = username,
-    fullname     = fullname,
-    department   = department,
-    role         = role.name,
-    passwordHash = passwordHash,
-    createdAt    = createdAt,
-    isActive     = isActive
+    username         = username,
+    fullname         = fullname,
+    department       = department,
+    role             = role.name,
+    passwordHash     = passwordHash,
+    createdAt        = createdAt,
+    isActive         = isActive,
+    profileImageUri  = profileImageUri
 )
 
 fun NotificationEntity.toDomain() = AppNotification(

@@ -75,6 +75,9 @@ dependencies {
 
     implementation("androidx.compose.material:material-icons-extended")
 
+    // Coil — async image loading in Compose
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
     implementation("androidx.hilt:hilt-work:1.2.0")
     kapt("androidx.hilt:hilt-compiler:1.2.0")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")

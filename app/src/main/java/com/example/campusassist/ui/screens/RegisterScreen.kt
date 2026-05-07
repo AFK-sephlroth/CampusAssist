@@ -36,6 +36,14 @@ fun RegisterScreen(
 ) {
     val state by viewModel.registerState.collectAsState()
 
+    // Reset any stale success flag from a previous registration in the same
+    // session.  If we don't clear it here, LaunchedEffect(state.isSuccess)
+    // fires immediately on entry (isSuccess == true) and pops back to Login
+    // before the user can fill in the form a second time.
+    LaunchedEffect(Unit) {
+        viewModel.resetRegisterState()
+    }
+
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) onNavigateBack()
     }

@@ -1,7 +1,11 @@
 package com.example.campusassist.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -9,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.SettingsBrightness
@@ -21,9 +26,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.campusassist.domain.model.User
 import com.example.campusassist.domain.model.UserRole
 import com.example.campusassist.ui.theme.CampusColors
@@ -43,6 +52,14 @@ fun ProfileScreen(
     // persisted preference immediately, even after process recreation.
     val theme by themeViewModel.theme.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Image picker launcher — saves the URI straight to the DB and refreshes
+    // authState so the dashboard avatar updates immediately.
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { authViewModel.updateProfileImage(it.toString()) }
+    }
 
     val roleColor = when (user.role) {
         UserRole.STAFF -> CampusColors.CatLibrary
@@ -110,19 +127,54 @@ fun ProfileScreen(
                         modifier = Modifier
                             .size(64.dp)
                             .clip(CircleShape)
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(roleColor, roleColor.copy(alpha = 0.6f))
-                                )
-                            ),
+                            .clickable { imagePickerLauncher.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            user.fullname.take(1).uppercase(Locale.getDefault()),
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize   = 22.sp,
-                            color      = Color.White
-                        )
+                        if (user.profileImageUri != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(Uri.parse(user.profileImageUri))
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Profile photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize().clip(CircleShape)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(roleColor, roleColor.copy(alpha = 0.6f))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    user.fullname.take(1).uppercase(Locale.getDefault()),
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize   = 22.sp,
+                                    color      = Color.White
+                                )
+                            }
+                        }
+                        // Camera overlay hint
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.25f), CircleShape),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Change photo",
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .padding(bottom = 2.dp)
+                            )
+                        }
                     }
                     Column {
                         Text(

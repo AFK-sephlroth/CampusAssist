@@ -6,7 +6,8 @@ data class User(
     val role: UserRole,
     val department: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val profileImageUri: String? = null
 )
 
 enum class UserRole(val displayName: String) {

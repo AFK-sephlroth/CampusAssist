@@ -96,6 +96,16 @@ class AuthViewModel @Inject constructor(
         _authState.value = AuthUiState()
     }
 
+    fun updateProfileImage(uri: String?) {
+        val username = _authState.value.currentUser?.username ?: return
+        viewModelScope.launch {
+            userRepository.updateProfileImage(username, uri)
+            // Refresh the current user so the new URI propagates to the dashboard
+            val updated = userRepository.getUserById(username)
+            _authState.update { it.copy(currentUser = updated) }
+        }
+    }
+
     // ── Registration — field updates ──────────────────────────────────────────
 
     fun onRoleChange(role: UserRole) {
@@ -109,6 +119,14 @@ class AuthViewModel @Inject constructor(
     fun onPasswordChange(v: String)        = _registerState.update { it.copy(password = v) }
     fun onConfirmPasswordChange(v: String) = _registerState.update { it.copy(confirmPassword = v) }
     fun onDepartmentTextChange(v: String)  = _registerState.update { it.copy(departmentText = v) }
+
+    // Call this when entering the Register screen to clear any stale success
+    // state from a previous registration in the same session.  Without this,
+    // LaunchedEffect(state.isSuccess) fires immediately (isSuccess is still
+    // true) and pops the user back to Login before they can fill in the form.
+    fun resetRegisterState() {
+        _registerState.value = RegisterUiState()
+    }
 
     // ── Registration — submit ─────────────────────────────────────────────────
 

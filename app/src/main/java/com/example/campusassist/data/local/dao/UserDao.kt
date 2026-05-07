@@ -22,6 +22,9 @@ interface UserDao {
     @Update
     suspend fun updateUser(user: UserEntity)
 
+    @Query("UPDATE users SET profileImageUri = :uri WHERE username = :username")
+    suspend fun updateProfileImage(username: String, uri: String?)
+
     @Query("SELECT * FROM users WHERE role = :role")
     fun getUsersByRole(role: String): Flow<List<UserEntity>>
 }

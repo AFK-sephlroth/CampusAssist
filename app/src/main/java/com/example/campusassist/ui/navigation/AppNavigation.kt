@@ -1,5 +1,7 @@
 package com.example.campusassist.ui.navigation
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
@@ -7,6 +9,26 @@ import androidx.navigation.compose.*
 import androidx.navigation.navArgument
 import com.example.campusassist.ui.screens.*
 import com.example.campusassist.ui.viewmodel.*
+
+// ── Shared transition specs ───────────────────────────────────────────────────
+// All durations are in milliseconds.  300 ms is the Material Motion sweet spot
+// — fast enough to feel snappy, slow enough to register as intentional.
+
+private const val DURATION = 500
+
+// Forward push: new screen slides in from the right, old screen fades + slides left.
+private val pushEnter  = slideInHorizontally(tween(DURATION)) { it } + fadeIn(tween(DURATION))
+private val pushExit   = slideOutHorizontally(tween(DURATION)) { -it / 3 } + fadeOut(tween(DURATION))
+
+// Back pop: current screen slides out to the right, previous screen fades + slides in from left.
+private val popEnter   = slideInHorizontally(tween(DURATION)) { -it / 3 } + fadeIn(tween(DURATION))
+private val popExit    = slideOutHorizontally(tween(DURATION)) { it } + fadeOut(tween(DURATION))
+
+// Vertical lift: used for modal-style screens (Create Ticket) that slide up from the bottom.
+private val liftEnter  = slideInVertically(tween(DURATION)) { it } + fadeIn(tween(DURATION))
+private val liftExit   = slideOutVertically(tween(DURATION)) { it } + fadeOut(tween(DURATION))
+private val liftPopEnter  = fadeIn(tween(DURATION))
+private val liftPopExit   = slideOutVertically(tween(DURATION)) { it } + fadeOut(tween(DURATION))
 
 sealed class Screen(val route: String) {
     object Login         : Screen("login")
@@ -80,21 +102,42 @@ fun AppNavigation() {
 
         NavHost(navController = navController, startDestination = startDestination) {
 
-            composable(Screen.Login.route) {
+            // Login — base screen; no push animation coming in, fades out on forward nav
+            composable(
+                route = Screen.Login.route,
+                enterTransition = { fadeIn(tween(DURATION)) },
+                exitTransition  = { pushExit },
+                popEnterTransition = { popEnter },
+                popExitTransition  = { fadeOut(tween(DURATION)) }
+            ) {
                 LoginScreen(
                     viewModel = authViewModel,
                     onNavigateToRegister = { navController.navigate(Screen.Register.route) }
                 )
             }
 
-            composable(Screen.Register.route) {
+            // Register — pushed right from Login
+            composable(
+                route = Screen.Register.route,
+                enterTransition = { pushEnter },
+                exitTransition  = { pushExit },
+                popEnterTransition = { popEnter },
+                popExitTransition  = { popExit }
+            ) {
                 RegisterScreen(
                     viewModel = authViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
 
-            composable(Screen.TicketList.route) {
+            // Ticket List — root of the authenticated graph; fades in cleanly
+            composable(
+                route = Screen.TicketList.route,
+                enterTransition = { fadeIn(tween(DURATION)) },
+                exitTransition  = { pushExit },
+                popEnterTransition = { popEnter },
+                popExitTransition  = { fadeOut(tween(DURATION)) }
+            ) {
                 TicketListScreen(
                     viewModel            = ticketViewModel,
                     onCreateTicket       = { navController.navigate(Screen.CreateTicket.route) },
@@ -110,7 +153,14 @@ fun AppNavigation() {
                 )
             }
 
-            composable(Screen.CreateTicket.route) {
+            // Create Ticket — slides up from the bottom (modal feel)
+            composable(
+                route = Screen.CreateTicket.route,
+                enterTransition = { liftEnter },
+                exitTransition  = { liftExit },
+                popEnterTransition = { liftPopEnter },
+                popExitTransition  = { liftPopExit }
+            ) {
                 CreateTicketScreen(
                     viewModel           = ticketViewModel,
                     departmentViewModel = departmentViewModel,
@@ -118,9 +168,14 @@ fun AppNavigation() {
                 )
             }
 
+            // Ticket Detail — pushed right from the list
             composable(
                 route     = Screen.TicketDetail.route,
-                arguments = listOf(navArgument("ticketId") { type = NavType.LongType })
+                arguments = listOf(navArgument("ticketId") { type = NavType.LongType }),
+                enterTransition = { pushEnter },
+                exitTransition  = { pushExit },
+                popEnterTransition = { popEnter },
+                popExitTransition  = { popExit }
             ) { backStack ->
                 val id = backStack.arguments?.getLong("ticketId") ?: return@composable
                 TicketDetailScreen(
@@ -131,7 +186,14 @@ fun AppNavigation() {
                 )
             }
 
-            composable(Screen.Profile.route) {
+            // Profile — pushed right from the list
+            composable(
+                route = Screen.Profile.route,
+                enterTransition = { pushEnter },
+                exitTransition  = { pushExit },
+                popEnterTransition = { popEnter },
+                popExitTransition  = { popExit }
+            ) {
                 authState.currentUser?.let { user ->
                     ProfileScreen(
                         user           = user,
@@ -142,7 +204,14 @@ fun AppNavigation() {
                 }
             }
 
-            composable(Screen.Notifications.route) {
+            // Notifications — pushed right from the list
+            composable(
+                route = Screen.Notifications.route,
+                enterTransition = { pushEnter },
+                exitTransition  = { pushExit },
+                popEnterTransition = { popEnter },
+                popExitTransition  = { popExit }
+            ) {
                 NotificationScreen(
                     viewModel      = notifViewModel,
                     onNavigateBack = { navController.popBackStack() }

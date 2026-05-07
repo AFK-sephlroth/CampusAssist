@@ -12,5 +12,6 @@ data class UserEntity(
     val role: String,
     val passwordHash: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val profileImageUri: String? = null
 )
