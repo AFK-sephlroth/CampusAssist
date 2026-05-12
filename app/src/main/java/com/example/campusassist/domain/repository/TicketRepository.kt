@@ -14,5 +14,7 @@ interface TicketRepository {
     suspend fun updateNotes(id: Long, notes: String?)
     suspend fun deleteTicket(ticket: ServiceTicket)
     suspend fun getUnsyncedTickets(): List<ServiceTicket>
-    suspend fun markAsSynced(id: Long)
+    suspend fun markAsSynced(id: Long, firestoreId: String)
+    // Pulls all tickets from Firestore and refreshes Room — used on login/reconnect
+    suspend fun syncFromFirestore()
 }

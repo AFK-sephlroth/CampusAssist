@@ -7,8 +7,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import com.example.campusassist.data.local.TutorialManager
 import com.example.campusassist.ui.screens.*
 import com.example.campusassist.ui.viewmodel.*
+import androidx.compose.ui.platform.LocalContext
 
 // ── Shared transition specs ───────────────────────────────────────────────────
 // All durations are in milliseconds.  300 ms is the Material Motion sweet spot
@@ -92,7 +94,8 @@ fun AppNavigation() {
             if (authState.isLoggedIn) {
                 authState.currentUser?.let {
                     notifViewModel.setUser(it.username)
-                    syncViewModel.setUser(it.username)
+                    // Pull latest tickets from Firestore on every login
+                    syncViewModel.syncNow()
                 }
             }
         }
@@ -138,6 +141,15 @@ fun AppNavigation() {
                 popEnterTransition = { popEnter },
                 popExitTransition  = { fadeOut(tween(DURATION)) }
             ) {
+                val context = LocalContext.current
+                val tutorialManager = remember { TutorialManager(context) }
+                val username = authState.currentUser?.username ?: ""
+
+                // Show tutorial overlay for first-time users
+                var showTutorial by remember {
+                    mutableStateOf(username.isNotBlank() && !tutorialManager.hasSeenTutorial(username))
+                }
+
                 TicketListScreen(
                     viewModel            = ticketViewModel,
                     onCreateTicket       = { navController.navigate(Screen.CreateTicket.route) },
@@ -151,6 +163,19 @@ fun AppNavigation() {
                     currentUser          = authState.currentUser,
                     departmentViewModel  = departmentViewModel,
                 )
+
+                if (showTutorial) {
+                    OnboardingOverlay(
+                        onFinish = {
+                            tutorialManager.markTutorialSeen(username)
+                            showTutorial = false
+                        },
+                        onSkip = {
+                            tutorialManager.markTutorialSeen(username)
+                            showTutorial = false
+                        }
+                    )
+                }
             }
 
             // Create Ticket — slides up from the bottom (modal feel)
@@ -182,7 +207,9 @@ fun AppNavigation() {
                     ticketId            = id,
                     viewModel           = ticketViewModel,
                     departmentViewModel = departmentViewModel,
-                    onNavigateBack      = { navController.popBackStack() }
+                    onNavigateBack      = { navController.popBackStack() },
+                    currentUsername     = authState.currentUser?.username ?: "user",
+                    currentDisplayName  = authState.currentUser?.fullname ?: "User"
                 )
             }
 

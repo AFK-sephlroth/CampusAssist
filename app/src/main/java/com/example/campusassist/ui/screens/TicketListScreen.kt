@@ -61,7 +61,7 @@ fun TicketListScreen(
 ) {
     val uiState by viewModel.listUiState.collectAsState()
     val deptState by departmentViewModel.uiState.collectAsState()
-    val syncState by syncViewModel?.syncState?.collectAsState()
+    val syncState by syncViewModel?.uiState?.collectAsState()
         ?: remember { mutableStateOf(com.example.campusassist.ui.viewmodel.SyncUiState()) }
     var selectedFilter by remember { mutableStateOf<TicketStatus?>(null) }
 

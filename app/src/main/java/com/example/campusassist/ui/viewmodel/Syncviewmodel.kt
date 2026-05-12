@@ -1,121 +1,94 @@
 package com.example.campusassist.ui.viewmodel
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.example.campusassist.data.local.NetworkMonitor
-import com.example.campusassist.worker.SyncWorker
+import com.example.campusassist.data.remote.FirebaseTicketSource
+import com.example.campusassist.data.repository.TicketRepositoryImpl
+import com.example.campusassist.domain.repository.TicketRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SyncUiState(
-    val isOnline: Boolean = true,
     val isSyncing: Boolean = false,
+    val isOnline: Boolean = true,
     val lastSyncMessage: String? = null,
-    val showSyncBanner: Boolean = false   // shown when sync just completed
+    val showSyncBanner: Boolean = false
 )
 
 @HiltViewModel
 class SyncViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    private val ticketRepository: TicketRepository,
+    private val firestoreSource: FirebaseTicketSource,
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
-    private val workManager = WorkManager.getInstance(context)
-
-    private val _syncState = MutableStateFlow(SyncUiState())
-    val syncState: StateFlow<SyncUiState> = _syncState.asStateFlow()
-
-    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
-
-    private var currentUserId: String? = null
+    private val _uiState = MutableStateFlow(SyncUiState())
+    val uiState: StateFlow<SyncUiState> = _uiState.asStateFlow()
 
     init {
         networkMonitor.startMonitoring()
-        observeNetworkChanges()
-        observeWorkState()
+        observeConnectivity()
+        startFirestoreListener()
     }
 
-    fun setUser(userId: String) {
-        currentUserId = userId
-        // Schedule periodic background sync
-        SyncWorker.schedulePeriodic(context, userId)
-    }
+    // ── Real-time Firestore → Room listener ───────────────────────────────────
 
-    /** Call this when the user manually pulls to refresh or taps sync */
-    fun syncNow() {
-        val userId = currentUserId ?: return
-        if (!networkMonitor.isOnline.value) {
-            _syncState.update { it.copy(lastSyncMessage = "No internet connection") }
-            return
+    private fun startFirestoreListener() {
+        viewModelScope.launch {
+            firestoreSource.observeAllTickets()
+                .catch { /* Firestore unavailable — Room data stays as-is */ }
+                .collect {
+                    // Each emission means Firestore changed — pull into Room
+                    runCatching { ticketRepository.syncFromFirestore() }
+                }
         }
-        SyncWorker.scheduleOneTime(context, userId)
+    }
+
+    // ── Connectivity watcher ──────────────────────────────────────────────────
+
+    private fun observeConnectivity() {
+        viewModelScope.launch {
+            // NetworkMonitor exposes `isOnline`, not `isConnected`
+            networkMonitor.isOnline.collect { isOnline ->
+                _uiState.update { it.copy(isOnline = isOnline) }
+                if (isOnline) {
+                    // Back online — push any locally-created/edited tickets
+                    runCatching { syncUnsynced() }
+                }
+            }
+        }
+    }
+
+    // ── Manual sync ───────────────────────────────────────────────────────────
+
+    fun syncNow() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = true, lastSyncMessage = null, showSyncBanner = false) }
+            try {
+                ticketRepository.syncFromFirestore()
+                syncUnsynced()
+                _uiState.update {
+                    it.copy(isSyncing = false, lastSyncMessage = "Synced successfully", showSyncBanner = true)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isSyncing = false, lastSyncMessage = "Sync failed: ${e.message}", showSyncBanner = true)
+                }
+            }
+        }
     }
 
     fun dismissSyncBanner() {
-        _syncState.update { it.copy(showSyncBanner = false, lastSyncMessage = null) }
+        _uiState.update { it.copy(showSyncBanner = false, lastSyncMessage = null) }
     }
 
-    private fun observeNetworkChanges() {
-        viewModelScope.launch {
-            networkMonitor.isOnline
-                .collect { online ->
-                    _syncState.update { it.copy(isOnline = online) }
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-                    // Auto-trigger sync when coming back online
-                    if (online) {
-                        currentUserId?.let { uid ->
-                            SyncWorker.scheduleOneTime(context, uid)
-                        }
-                    }
-                }
-        }
-    }
-
-    private fun observeWorkState() {
-        viewModelScope.launch {
-            workManager
-                .getWorkInfosByTagFlow(SyncWorker.WORK_NAME_ONESHOT)
-                .collect { workInfoList ->
-                    val info = workInfoList.firstOrNull() ?: return@collect
-
-                    when (info.state) {
-                        WorkInfo.State.RUNNING -> {
-                            _syncState.update { it.copy(isSyncing = true) }
-                        }
-                        WorkInfo.State.SUCCEEDED -> {
-                            val synced   = info.outputData.getInt("synced_count", 0)
-                            val conflicts = info.outputData.getInt("conflict_count", 0)
-                            val msg = when {
-                                synced == 0   -> "Already up to date"
-                                conflicts > 0 -> "Synced $synced ticket(s), $conflicts conflict(s)"
-                                else          -> "Synced $synced ticket(s) successfully"
-                            }
-                            _syncState.update {
-                                it.copy(
-                                    isSyncing = false,
-                                    lastSyncMessage = msg,
-                                    showSyncBanner = synced > 0
-                                )
-                            }
-                        }
-                        WorkInfo.State.FAILED -> {
-                            _syncState.update {
-                                it.copy(isSyncing = false, lastSyncMessage = "Sync failed. Will retry.")
-                            }
-                        }
-                        WorkInfo.State.CANCELLED -> {
-                            _syncState.update { it.copy(isSyncing = false) }
-                        }
-                        else -> { /* ENQUEUED / BLOCKED — no UI change needed */ }
-                    }
-                }
-        }
+    private suspend fun syncUnsynced() {
+        (ticketRepository as? TicketRepositoryImpl)?.syncUnsyncedTickets()
     }
 
     override fun onCleared() {

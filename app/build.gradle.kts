@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
+    id("com.google.gms.google-services")   // ← Firebase
 }
 
 android {
@@ -82,6 +83,11 @@ dependencies {
     kapt("androidx.hilt:hilt-compiler:1.2.0")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
     kaptAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
+
+    // Firebase BOM — keeps all Firebase versions in sync
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")       // Authentication
+    implementation("com.google.firebase:firebase-firestore-ktx")  // User profiles (+ tickets later)
 }
 
 kapt {

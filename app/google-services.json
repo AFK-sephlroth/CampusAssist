@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "836217193814",
+    "project_id": "campusassist-2d360",
+    "storage_bucket": "campusassist-2d360.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:836217193814:android:0a0666974b5ab500da42f7",
+        "android_client_info": {
+          "package_name": "com.example.campusassist"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDLK2mADIIa56hClvgM3QI___gcQYYweFw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

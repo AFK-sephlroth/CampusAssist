@@ -101,73 +101,26 @@ class SyncWorker @AssistedInject constructor(
                 return@withContext Result.success()
             }
 
-            var syncedCount  = 0
-            var conflictCount = 0
+            // Delegate to the repository which handles Firestore push + markAsSynced
+            (ticketRepository as? com.example.campusassist.data.repository.TicketRepositoryImpl)
+                ?.syncUnsyncedTickets()
 
-            for (ticket in unsyncedTickets) {
-                try {
-                    // ── In a real app, you would POST/PUT to your REST API or
-                    //    Firestore here. For now we simulate with a delay and
-                    //    mark the ticket as synced in Room.
-                    //
-                    // Example with Retrofit:
-                    //   val response = apiService.uploadTicket(ticket.toApiModel())
-                    //   if (response.isSuccessful) ticketRepository.markAsSynced(ticket.id)
-                    //
-                    // Example with Firestore:
-                    //   firestore.collection("tickets").document(ticket.id.toString())
-                    //       .set(ticket.toFirestoreMap()).await()
-                    //   ticketRepository.markAsSynced(ticket.id)
+            val syncedCount = unsyncedTickets.size
 
-                    // Simulate network call
-                    kotlinx.coroutines.delay(100)
-
-                    ticketRepository.markAsSynced(ticket.id)
-                    syncedCount++
-
-                    Log.d(TAG, "Synced ticket #${ticket.id}: ${ticket.title}")
-
-                } catch (e: ConflictException) {
-                    // Conflict: ticket was modified both locally and remotely
-                    conflictCount++
-                    Log.w(TAG, "Conflict on ticket #${ticket.id}: ${e.message}")
-
-                    notificationRepository.addNotification(
-                        AppNotification(
-                            userId = userId,
-                            ticketId = ticket.id,
-                            title = "Sync Conflict",
-                            message = "Ticket \"${ticket.title}\" has a conflict. Please review.",
-                            type = NotificationType.CONFLICT
-                        )
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync ticket #${ticket.id}", e)
-                    // Don't fail the entire job — retry unsynced ones next time
-                }
-            }
-
-            // Send a summary notification after sync completes
             if (syncedCount > 0) {
                 notificationRepository.addNotification(
                     AppNotification(
-                        userId = userId,
+                        userId   = userId,
                         ticketId = 0,
-                        title = "Sync Complete",
-                        message = "$syncedCount ticket${if (syncedCount > 1) "s" else ""} synced successfully." +
-                                if (conflictCount > 0) " $conflictCount conflict(s) need attention." else "",
-                        type = NotificationType.SYNC_COMPLETE
+                        title    = "Sync Complete",
+                        message  = "$syncedCount ticket${if (syncedCount > 1) "s" else ""} synced successfully.",
+                        type     = NotificationType.SYNC_COMPLETE
                     )
                 )
             }
 
-            Log.d(TAG, "Sync done. Synced: $syncedCount, Conflicts: $conflictCount")
-            Result.success(
-                workDataOf(
-                    "synced_count"   to syncedCount,
-                    "conflict_count" to conflictCount
-                )
-            )
+            Log.d(TAG, "Sync done. Synced: $syncedCount")
+            Result.success(workDataOf("synced_count" to syncedCount))
 
         } catch (e: Exception) {
             Log.e(TAG, "Sync failed entirely", e)
@@ -176,5 +129,3 @@ class SyncWorker @AssistedInject constructor(
     }
 }
 
-/** Thrown when a server-side conflict is detected during sync */
-class ConflictException(message: String) : Exception(message)

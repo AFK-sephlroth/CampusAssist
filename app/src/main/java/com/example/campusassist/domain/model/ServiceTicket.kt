@@ -12,7 +12,9 @@ data class ServiceTicket(
     val updatedAt: Long = System.currentTimeMillis(),
     val departmentId: Long? = null,
     val notes: String? = null,
-    val attachmentUris: String? = null   // comma-separated URI list
+    val attachmentUris: String? = null,
+    val firestoreId: String? = null,
+    val createdBy: String? = null
 )
 
 enum class ServiceCategory(val displayName: String) {
