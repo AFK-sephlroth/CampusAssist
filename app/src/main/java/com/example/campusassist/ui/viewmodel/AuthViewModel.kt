@@ -171,6 +171,13 @@ class AuthViewModel @Inject constructor(
                     role       = s.role
                 )
                 userRepository.register(user, s.password)
+
+                // Sync departments from Firestore so this device's Room DB
+                // receives the newly created department through the normal sync
+                // path — preventing duplication that would occur if we both
+                // inserted locally in getOrCreateByName AND pulled from Firestore.
+                runCatching { departmentRepository.syncFromFirestore() }
+
                 _registerState.update { it.copy(isLoading = false, isSuccess = true) }
             } catch (e: Exception) {
                 _registerState.update {

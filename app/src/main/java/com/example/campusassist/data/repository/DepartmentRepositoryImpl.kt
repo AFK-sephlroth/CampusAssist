@@ -21,6 +21,10 @@ class DepartmentRepositoryImpl @Inject constructor(
 
     companion object {
         private const val DEPARTMENTS_COLLECTION = "departments"
+        // Top-level document that records all known department names.
+        // Writing here is what makes the dropdown update on every device.
+        private const val DOCUMENTS_COLLECTION   = "documents"
+        private const val CCIS_DOCUMENT_ID       = "ccis"
     }
 
     override fun getAllDepartments(): Flow<List<Department>> =
@@ -52,7 +56,7 @@ class DepartmentRepositoryImpl @Inject constructor(
     override suspend fun getOrCreateByName(name: String): Department {
         val trimmed = name.trim()
 
-        // 1. Check local Room first (fast path)
+        // 1. Check local Room first (fast path — already synced from Firestore)
         val existing = dao.getByName(trimmed)
         if (existing != null) return existing.toDomain()
 
@@ -67,26 +71,30 @@ class DepartmentRepositoryImpl @Inject constructor(
         if (firestoreDoc != null && firestoreDoc.exists()) {
             val code      = firestoreDoc.getString("code") ?: trimmed.take(4).uppercase()
             val createdAt = firestoreDoc.getLong("createdAt") ?: System.currentTimeMillis()
-            val entity    = DepartmentEntity(name = trimmed, code = code, createdAt = createdAt)
-            dao.insertDepartment(entity)
+            // Store in Room so the current session can use it
+            val entity = DepartmentEntity(name = trimmed, code = code, createdAt = createdAt)
+            dao.insertOrReplaceDepartment(entity)
             return entity.toDomain()
         }
 
-        // 3. Truly new — create locally and push to Firestore
-        val newEntity = DepartmentEntity(
+        // 3. Truly new — push to Firestore ONLY.
+        // Do NOT insert into Room here; the local Room record will arrive via
+        // syncFromFirestore() which AuthViewModel calls after registration
+        // completes. Inserting locally here AND syncing on the same device
+        // causes the department to appear twice in the dropdown.
+        val newDept = Department(
             name      = trimmed,
             code      = trimmed.take(4).uppercase(),
             createdAt = System.currentTimeMillis()
         )
-        val insertedId = dao.insertDepartment(newEntity)
-        val created    = newEntity.copy(id = insertedId).toDomain()
-        pushDepartmentToFirestore(created)
-        return created
+        pushDepartmentToFirestore(newDept)
+        return newDept
     }
 
     /**
      * Pull all departments from Firestore into Room.
      * Call on login / app startup so every device stays in sync.
+     * Uses REPLACE so updates from other devices overwrite stale local rows.
      */
     override suspend fun syncFromFirestore() {
         try {
@@ -96,7 +104,8 @@ class DepartmentRepositoryImpl @Inject constructor(
                 val code      = doc.getString("code") ?: name.take(4).uppercase()
                 val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
                 val entity    = DepartmentEntity(name = name, code = code, createdAt = createdAt)
-                dao.insertDepartment(entity) // IGNORE on conflict — preserves local IDs
+                // REPLACE so data from other devices always wins over stale local rows
+                dao.insertOrReplaceDepartment(entity)
             }
         } catch (_: Exception) { /* offline — Room data stays as-is */ }
     }
@@ -105,16 +114,26 @@ class DepartmentRepositoryImpl @Inject constructor(
 
     private suspend fun pushDepartmentToFirestore(department: Department) {
         try {
-            val doc = mapOf(
+            val docData = mapOf(
                 "name"      to department.name,
                 "code"      to department.code,
-                "createdAt" to System.currentTimeMillis()
+                "createdAt" to department.createdAt
             )
-            // Lowercase name as document ID for idempotent upserts
+            // Primary record — lowercase name as document ID for idempotent upserts
             firestore.collection(DEPARTMENTS_COLLECTION)
                 .document(department.name.trim().lowercase())
-                .set(doc)
+                .set(docData)
                 .await()
-        } catch (_: Exception) { /* best-effort; Room already has it */ }
+
+            // Also update the documents/ccis catalogue so every device can
+            // discover departments via a single well-known document.
+            firestore.collection(DOCUMENTS_COLLECTION)
+                .document(CCIS_DOCUMENT_ID)
+                .set(
+                    mapOf("departments" to com.google.firebase.firestore.FieldValue.arrayUnion(department.name)),
+                    com.google.firebase.firestore.SetOptions.merge()
+                )
+                .await()
+        } catch (_: Exception) { /* best-effort; local Room already has it after sync */ }
     }
 }
