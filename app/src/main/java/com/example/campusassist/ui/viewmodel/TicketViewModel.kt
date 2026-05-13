@@ -112,13 +112,11 @@ class TicketViewModel @Inject constructor(
         viewModelScope.launch {
             _createUiState.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                // ── FIX: Copy each content:// image into internal storage ────
-                // The URIs returned by the photo picker are temporary; they are
-                // revoked when the process dies.  persistImage() copies each
-                // file to app-private storage and returns a stable file:// URI.
+                // Upload each image to Firebase Storage → returns https:// URLs
+                // that work on any device. Falls back to file:// if offline.
                 val persistedUris = state.attachmentUris
                     .filter { it.isNotBlank() }
-                    .map { imageStorage.persistImage(it) }
+                    .map { imageStorage.persistImage(it) }   // suspend: copies + uploads
 
                 val ticket = ServiceTicket(
                     title          = state.title,
@@ -159,12 +157,12 @@ class TicketViewModel @Inject constructor(
 
     fun deleteTicket(ticket: ServiceTicket) {
         viewModelScope.launch {
-            // Clean up persisted image files before deleting the ticket record
+            // Delete images from Firebase Storage + local cache
             ticket.attachmentUris
                 ?.split(",")
                 ?.map { it.trim() }
                 ?.filter { it.isNotBlank() }
-                ?.forEach { imageStorage.deleteImage(it) }
+                ?.forEach { imageStorage.deleteImage(it) }   // suspend: deletes remote + local
 
             repository.deleteTicket(ticket)
         }

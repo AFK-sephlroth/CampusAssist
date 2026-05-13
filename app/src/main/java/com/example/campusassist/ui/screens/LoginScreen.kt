@@ -128,7 +128,7 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = studentId,
                     onValueChange = { studentId = it },
-                    label = { Text("Student / Staff ID") },
+                    label = { Text("Username") },
                     leadingIcon = { Icon(Icons.Default.Person, null, tint = CampusColors.TextSecondary) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),

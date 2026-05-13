@@ -1,10 +1,21 @@
+import java.util.Properties
+
+// ── Read local.properties at the top level (outside android block) ────────────
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) load(f.inputStream())
+}
+val cloudinaryCloudName: String = localProps.getProperty("CLOUDINARY_CLOUD_NAME", "")
+val cloudinaryApiKey: String    = localProps.getProperty("CLOUDINARY_API_KEY",    "")
+val cloudinaryApiSecret: String = localProps.getProperty("CLOUDINARY_API_SECRET", "")
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.dagger.hilt.android")
     id("kotlin-kapt")
-    id("com.google.gms.google-services")   // ← Firebase
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -17,6 +28,11 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+
+        // Cloudinary credentials injected from local.properties → BuildConfig
+        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"$cloudinaryCloudName\"")
+        buildConfigField("String", "CLOUDINARY_API_KEY",    "\"$cloudinaryApiKey\"")
+        buildConfigField("String", "CLOUDINARY_API_SECRET", "\"$cloudinaryApiSecret\"")
     }
 
     buildTypes {
@@ -36,6 +52,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -79,15 +96,18 @@ dependencies {
     // Coil — async image loading in Compose
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // OkHttp — reliable HTTP for Cloudinary uploads
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     implementation("androidx.hilt:hilt-work:1.2.0")
     kapt("androidx.hilt:hilt-compiler:1.2.0")
     androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
     kaptAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
 
-    // Firebase BOM — keeps all Firebase versions in sync
+    // Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")       // Authentication
-    implementation("com.google.firebase:firebase-firestore-ktx")  // User profiles (+ tickets later)
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
 }
 
 kapt {
