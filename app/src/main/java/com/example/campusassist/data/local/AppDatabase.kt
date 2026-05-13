@@ -21,7 +21,7 @@ import com.example.campusassist.data.local.entity.*
         DepartmentEntity::class,
         ChatMessageEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -114,6 +114,34 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE service_tickets ADD COLUMN firestoreId TEXT DEFAULT NULL")
                 db.execSQL("ALTER TABLE service_tickets ADD COLUMN createdBy TEXT DEFAULT NULL")
+            }
+        }
+
+        // Migration 8→9: adds a UNIQUE index on departments.name so that
+        // insertOrReplaceDepartment() (OnConflictStrategy.REPLACE) actually
+        // deduplicates by name — not just by the auto-generated id.
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Remove duplicates — keep the row with the smallest id for each name
+                db.execSQL("""
+                    DELETE FROM departments
+                    WHERE id NOT IN (
+                        SELECT MIN(id) FROM departments GROUP BY LOWER(name)
+                    )
+                """.trimIndent())
+                // 2. Recreate the table with the UNIQUE constraint baked in
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS departments_new (
+                        id        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name      TEXT    NOT NULL,
+                        code      TEXT    NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("INSERT INTO departments_new SELECT id, name, code, createdAt FROM departments")
+                db.execSQL("DROP TABLE departments")
+                db.execSQL("ALTER TABLE departments_new RENAME TO departments")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_departments_name ON departments(name)")
             }
         }
     }

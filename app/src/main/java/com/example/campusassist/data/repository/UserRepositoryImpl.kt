@@ -69,8 +69,16 @@ class UserRepositoryImpl @Inject constructor(
         )
         when (result) {
             is FirebaseAuthResult.Success      -> {
-                // Mirror into Room for offline access
-                dao.insertUser(user.toEntity(password.sha256()))
+                // Mirror into Room for offline access.
+                // Use try-catch: if the username row already exists (e.g. a retry
+                // after a partial failure) REPLACE should handle it, but we guard
+                // against any residual constraint exception rather than crashing.
+                try {
+                    dao.insertUser(user.toEntity(password.sha256()))
+                } catch (e: android.database.sqlite.SQLiteConstraintException) {
+                    // Row already exists — update it instead so local data stays fresh
+                    dao.updateUser(user.toEntity(password.sha256()))
+                }
             }
             is FirebaseAuthResult.UsernameTaken -> throw Exception("Username already taken")
             is FirebaseAuthResult.WeakPassword  -> throw Exception("Password must be at least 6 characters")
