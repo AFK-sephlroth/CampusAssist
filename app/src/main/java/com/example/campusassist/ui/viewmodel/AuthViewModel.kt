@@ -69,6 +69,8 @@ class AuthViewModel @Inject constructor(
                     // Still load from Room so profile image URI is included
                     val user = userRepository.getUserById(username)
                         ?: buildUserFromProfile(profile)
+                    // Sync departments so the New Request dropdown is always up to date
+                    runCatching { departmentRepository.syncFromFirestore() }
                     _authState.value = AuthUiState(isLoading = false, isLoggedIn = true, currentUser = user)
                     return@launch
                 }
@@ -78,6 +80,8 @@ class AuthViewModel @Inject constructor(
             val userId = sessionManager.userId.value
             if (userId != null) {
                 val user = userRepository.getUserById(userId)
+                // Sync departments so the New Request dropdown is always up to date
+                if (user != null) runCatching { departmentRepository.syncFromFirestore() }
                 _authState.value = AuthUiState(
                     isLoading  = false,
                     isLoggedIn = user != null,
@@ -101,6 +105,8 @@ class AuthViewModel @Inject constructor(
             val user = userRepository.login(id.trim(), password)
             if (user != null) {
                 sessionManager.saveSession(user.username, user.role.name, user.fullname)
+                // Sync departments so the New Request dropdown is always up to date
+                runCatching { departmentRepository.syncFromFirestore() }
                 _authState.value = AuthUiState(isLoggedIn = true, currentUser = user)
             } else {
                 _authState.update { it.copy(isLoading = false, errorMessage = "Invalid username or password") }

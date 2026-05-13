@@ -10,4 +10,6 @@ interface DepartmentRepository {
     suspend fun updateDepartment(department: Department)
     suspend fun deleteDepartment(department: Department)
     suspend fun getOrCreateByName(name: String): Department
+    /** Pull all departments from Firestore into the local Room cache. */
+    suspend fun syncFromFirestore()
 }

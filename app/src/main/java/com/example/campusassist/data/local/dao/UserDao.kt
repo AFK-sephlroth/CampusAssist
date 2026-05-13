@@ -7,7 +7,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface UserDao {
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    // REPLACE (upsert) instead of ABORT so that:
+    //  • re-login on the same device refreshes the cached Firestore profile without crashing
+    //  • retrying a failed registration doesn't hit a UNIQUE constraint on username
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertUser(user: UserEntity)
 
     @Query("SELECT * FROM users WHERE username = :username AND passwordHash = :hash LIMIT 1")
