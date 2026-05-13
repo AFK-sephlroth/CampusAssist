@@ -11,6 +11,15 @@ interface DepartmentDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDepartment(department: DepartmentEntity): Long
 
+    /**
+     * Used by [syncFromFirestore] to overwrite stale local records with the
+     * authoritative Firestore data.  Unlike [insertDepartment] (IGNORE), this
+     * will replace an existing row so renamed/updated departments from other
+     * devices propagate correctly.
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplaceDepartment(department: DepartmentEntity): Long
+
     @Update
     suspend fun updateDepartment(department: DepartmentEntity)
 
