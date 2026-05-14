@@ -11,6 +11,7 @@ import com.example.campusassist.data.local.dao.NotificationDao
 import com.example.campusassist.data.local.dao.ServiceTicketDao
 import com.example.campusassist.data.local.dao.UserDao
 import com.example.campusassist.data.remote.FirebaseAuthSource
+import com.example.campusassist.data.remote.FirebaseChatSource
 import com.example.campusassist.data.remote.FirebaseTicketSource
 import com.example.campusassist.data.repository.DepartmentRepositoryImpl
 import com.example.campusassist.data.repository.NotificationRepositoryImpl
@@ -44,7 +45,8 @@ object DatabaseModule {
                 AppDatabase.MIGRATION_5_6,
                 AppDatabase.MIGRATION_6_7,
                 AppDatabase.MIGRATION_7_8,
-                AppDatabase.MIGRATION_8_9
+                AppDatabase.MIGRATION_8_9,
+                AppDatabase.MIGRATION_9_10
             )
             .build()
 
@@ -86,6 +88,12 @@ object FirebaseModule {
         firestore: FirebaseFirestore,
         auth: FirebaseAuth
     ): FirebaseTicketSource = FirebaseTicketSource(firestore, auth)
+
+    /** Firestore chat operations — real-time message sync per ticket. */
+    @Provides @Singleton
+    fun provideFirebaseChatSource(
+        firestore: FirebaseFirestore
+    ): FirebaseChatSource = FirebaseChatSource(firestore)
 }
 
 @Module

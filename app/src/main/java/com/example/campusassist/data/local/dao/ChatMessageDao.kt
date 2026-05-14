@@ -13,6 +13,10 @@ interface ChatMessageDao {
     @Query("SELECT * FROM chat_messages WHERE ticketId = :ticketId ORDER BY sentAt ASC")
     fun getMessagesForTicket(ticketId: Long): Flow<List<ChatMessageEntity>>
 
+    /** Used to avoid duplicate rows when caching Firestore messages locally. */
+    @Query("SELECT * FROM chat_messages WHERE firestoreId = :firestoreId LIMIT 1")
+    suspend fun getByFirestoreId(firestoreId: String): ChatMessageEntity?
+
     @Query("DELETE FROM chat_messages WHERE ticketId = :ticketId")
     suspend fun deleteMessagesForTicket(ticketId: Long)
 }

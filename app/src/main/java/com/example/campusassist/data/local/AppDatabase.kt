@@ -21,7 +21,7 @@ import com.example.campusassist.data.local.entity.*
         DepartmentEntity::class,
         ChatMessageEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -142,6 +142,21 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("DROP TABLE departments")
                 db.execSQL("ALTER TABLE departments_new RENAME TO departments")
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_departments_name ON departments(name)")
+            }
+        }
+
+        // Migration 9→10: adds firestoreId column to chat_messages so the
+        // ChatViewModel can deduplicate messages received from the Firestore
+        // real-time listener against rows already cached in Room.
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE chat_messages ADD COLUMN firestoreId TEXT DEFAULT NULL"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_chat_messages_firestoreId " +
+                    "ON chat_messages(firestoreId) WHERE firestoreId IS NOT NULL"
+                )
             }
         }
     }

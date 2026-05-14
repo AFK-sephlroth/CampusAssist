@@ -28,6 +28,11 @@ interface ServiceTicketDao {
     @Query("SELECT * FROM service_tickets WHERE id = :id")
     suspend fun getTicketById(id: Long): ServiceTicketEntity?
 
+    /** Flow version of getTicketById — used by ChatViewModel to watch for
+     *  the firestoreId becoming available after the ticket syncs. */
+    @Query("SELECT * FROM service_tickets WHERE id = :id")
+    fun observeTicketById(id: Long): Flow<ServiceTicketEntity?>
+
     @Query("SELECT * FROM service_tickets WHERE firestoreId = :firestoreId LIMIT 1")
     suspend fun getTicketByFirestoreId(firestoreId: String): ServiceTicketEntity?
 
