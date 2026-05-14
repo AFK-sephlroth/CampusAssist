@@ -53,8 +53,20 @@ fun CreateTicketScreen(
     val uiState  by viewModel.createUiState.collectAsState()
     val deptState by departmentViewModel.uiState.collectAsState()
 
+    // Reset the form every time this screen enters so that a stale isSuccess=true
+    // (left over from a previous submission on the shared ViewModel) doesn't
+    // immediately pop the screen before the user has typed anything.
+    LaunchedEffect(Unit) {
+        viewModel.resetCreateForm()
+    }
+
+    // Navigate back as soon as the ticket is successfully submitted, then reset
+    // the form so the state is clean for the next time the screen opens.
     LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) onNavigateBack()
+        if (uiState.isSuccess) {
+            viewModel.resetCreateForm()
+            onNavigateBack()
+        }
     }
 
     // Multi-image picker — appends selected URIs; ViewModel caps at 3

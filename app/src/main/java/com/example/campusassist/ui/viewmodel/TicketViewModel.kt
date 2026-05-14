@@ -128,7 +128,9 @@ class TicketViewModel @Inject constructor(
                 )
                 repository.createTicket(ticket)
                 _createUiState.update { it.copy(isLoading = false, isSuccess = true) }
-                resetCreateForm()
+                // Do NOT call resetCreateForm() here — it would immediately flip
+                // isSuccess back to false before the screen's LaunchedEffect can
+                // observe the true value and trigger navigation.
             } catch (e: Exception) {
                 _createUiState.update { it.copy(isLoading = false, errorMessage = e.message) }
             }

@@ -13,6 +13,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +26,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import com.example.campusassist.domain.model.UserRole
 import com.example.campusassist.ui.theme.CampusColors
 import com.example.campusassist.ui.viewmodel.AuthViewModel
@@ -35,6 +39,7 @@ fun RegisterScreen(
     onNavigateBack: () -> Unit
 ) {
     val state by viewModel.registerState.collectAsState()
+    val context = LocalContext.current
 
     // Reset any stale success flag from a previous registration in the same
     // session.  If we don't clear it here, LaunchedEffect(state.isSuccess)
@@ -45,7 +50,10 @@ fun RegisterScreen(
     }
 
     LaunchedEffect(state.isSuccess) {
-        if (state.isSuccess) onNavigateBack()
+        if (state.isSuccess) {
+            Toast.makeText(context, "Account created successfully", Toast.LENGTH_SHORT).show()
+            onNavigateBack()
+        }
     }
 
     Scaffold(
@@ -68,7 +76,7 @@ fun RegisterScreen(
                                 .background(CampusColors.TextMuted.copy(alpha = 0.3f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.ArrowBack, null, tint = CampusColors.TextPrimary)
+                            Icon(Icons.Filled.ArrowBack, null, tint = CampusColors.TextPrimary)
                         }
                     }
                 },
@@ -238,6 +246,8 @@ fun RegisterField(
     keyboardType:  KeyboardType = KeyboardType.Text,
     isPassword:    Boolean = false
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
+
     OutlinedTextField(
         value             = value,
         onValueChange     = onValueChange,
@@ -247,6 +257,23 @@ fun RegisterField(
         colors            = loginFieldColors(),
         singleLine        = true,
         keyboardOptions   = KeyboardOptions(keyboardType = keyboardType),
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None
+        visualTransformation = if (isPassword && !passwordVisible)
+            PasswordVisualTransformation()
+        else
+            VisualTransformation.None,
+        trailingIcon = if (isPassword) {
+            {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        imageVector = if (passwordVisible)
+                            Icons.Filled.Visibility
+                        else
+                            Icons.Filled.VisibilityOff,
+                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                        tint = CampusColors.StatusProgress
+                    )
+                }
+            }
+        } else null
     )
 }
